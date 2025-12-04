@@ -1,6 +1,8 @@
 import { useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import Heart from "../components/Heart";
+import FallingStarCanvas from "../components/FallingStarCanvas";
 
 export default function Register() {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -30,45 +32,56 @@ export default function Register() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-pink-100 to-pink-200">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h2 className="text-3xl font-bold text-center text-pink-600 mb-6">
-          💕 Tạo tài khoản LoveConnect
-        </h2>
+    <div className="relative w-full h-screen flex items-center justify-center bg-gradient-to-b from-black via-purple-900 to-black text-white overflow-hidden">
+      <FallingStarCanvas/>
+      <div className="registerForm text-white flex w-[1100px] h-[500px] items-center justify-center relative overflow-hidden border-2 border-white/10 rounded-xl">
+        <div className="content absolute top-0 left-0 w-[700px] h-full bg-black/10 items-center justify-center flex flex-col pb-0">
+            <h1 className="font-bold text-3xl h-[50px] pt-10">Welcome</h1>
+            <div className="flex-1 w-full relative">
+              <Heart/>
+            </div>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <input
-            type="text"
-            placeholder="Họ tên"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-400 focus:outline-none"
-          />
+        <form onSubmit={handleSubmit} className="login absolute w-[400px] h-full right-0 flex flex-col justify-center items-center bg-white/10 bg-opacity-10 p-10 z-10  border-white/20 backdrop-blur-90 rounded-xl">
+        <div className="login absolute w-[400px] h-full right-0 flex flex-col justify-center items-center bg-white/10 bg-opacity-10 p-10 z-10  border-white/20 backdrop-blur-90 rounded-xl ">
+          <h2 className="text-3xl font-bold text-center text-white mb-6">
+            Sign up
+          </h2>
+          <div className="input w-full mb-4">
+            <input
+              type="text"
+              placeholder="Usrername"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+              className="inputform w-full rounded-lg bg-white/20 placeholder-white/60 backdrop-blur-md p-3 focus:outline-none focus:ring-2 focus:ring-ping-300" 
+              />
+          </div>
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-400 focus:outline-none"
-          />
-
-          <input
-            type="password"
-            placeholder="Mật khẩu"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-400 focus:outline-none"
-          />
+          <div className="input w-full mb-4">
+            <input
+              type="email"
+              placeholder="Email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+              className="inputform w-full rounded-lg bg-white/20 placeholder-white/60 backdrop-blur-md p-3 focus:outline-none focus:ring-2 focus:ring-ping-300"
+            />
+          </div>
+          <div className="input w-full mb-4">
+            <input
+              type="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+              className="inputform w-full rounded-lg bg-white/20 placeholder-white/60 backdrop-blur-md p-3 focus:outline-none focus:ring-2 focus:ring-ping-300"
+            />
+          </div>
 
           <button
-            type="submit"
-            className="w-full bg-pink-500 text-white py-2 rounded-lg hover:bg-pink-600 transition"
-          >
-            Đăng ký
+            className="btn w-full bg-pink-300 hover:bg-pink-600 text-white font-semibold py-2 rounded-md shadow-lg">
+            Sign up
           </button>
 
           {message && (
@@ -81,6 +94,7 @@ export default function Register() {
               Đăng nhập
             </Link>
           </p>
+        </div>
         </form>
       </div>
     </div>

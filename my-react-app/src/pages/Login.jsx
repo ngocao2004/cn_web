@@ -1,12 +1,17 @@
-import { useState } from "react";
+
+import { useState, useContext } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
+import Heart from "../components/Heart";
+import FallingStarCanvas from "../components/FallingStarCanvas";
+import { UserContext } from "../App"
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_URL;
+  const { setUser } = useContext(UserContext);
 
   const handleSubmit = async (e) => {
     console.log("🔥 handleSubmit BẮT ĐẦU");
@@ -52,6 +57,8 @@ export default function Login() {
 
       sessionStorage.setItem("user", JSON.stringify(userForChat));
 
+      setUser(userForChat);
+
       // ✅ Kiểm tra đã lưu thành công chưa
       const saved = sessionStorage.getItem("user");
       console.log("🔍 Kiểm tra lại sessionStorage:", saved);
@@ -72,7 +79,7 @@ export default function Login() {
         navigate("/complete-profile");
       } else {
         console.log("➡️ Chuyển đến /");
-        navigate("/");
+        navigate("/home");
       }
     } catch (err) {
       console.error("❌ Lỗi đăng nhập:", err);
@@ -81,59 +88,60 @@ export default function Login() {
     }
   };
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-pink-100 to-pink-200">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h2 className="text-3xl font-bold text-center text-pink-600 mb-6">
-          💖 Đăng nhập LoveConnect
-        </h2>
+  return(
+        <div className="relative w-full h-screen flex items-center justify-center bg-gradient-to-b from-black via-purple-900 to-black text-white overflow-hidden ">
+            <FallingStarCanvas/>
+            <div className = "loginForm text-white flex w-[1100px] h-[500px] items-center justify-center relative overflow-hidden border-2 border-white/10 rounded-xl" >
+                <div className="content absolute top-0 left-0 w-[700px] h-full bg-black/10 items-center justify-center flex flex-col pb-0">
+                  <h1 className="font-bold text-3xl h-[50px] pt-10">Welcome</h1>
+                  <div className="flex-1 w-full relative">
+                    <Heart/>
+                  </div>
+                </div>
+                <form onSubmit={handleSubmit} className="login absolute w-[400px] h-full right-0 flex flex-col justify-center items-center bg-white/10 bg-opacity-10 p-10 z-10  border-white/20 backdrop-blur-90 rounded-xl">
+                  <div className="login absolute w-[400px] h-full right-0 flex flex-col justify-center items-center bg-white/10 bg-opacity-10 p-10 z-10  border-white/20 backdrop-blur-90 rounded-xl ">
+                      <h2 className="text-3xl font-bold text-white mb-6">Login</h2>
+                      <div className="input w-full mb-4">
+                          <input 
+                          type="email"
+                          placeholder="Email"
+                          value={form.email}
+                          onChange={(e) => setForm({ ...form, email: e.target.value })}
+                          required
+                          autoComplete="email"
+                          className="inputform w-full rounded-lg bg-white/20 placeholder-white/60 backdrop-blur-md p-3 focus:outline-none focus:ring-2 focus:ring-ping-300" />
+                      </div>
+                      <div className="input w-full mb-4">
+                          <input 
+                          type="password"
+                          placeholder="Password"
+                          value={form.password}
+                          onChange={(e) => setForm({ ...form, password: e.target.value })}
+                          required
+                          autoComplete="current-password"
+                          className="inputform w-full rounded-lg bg-white/20 placeholder-white/60 backdrop-blur-md p-3 focus:outline-none focus:ring-2 focus:ring-ping-300" />
+                      </div>
+                      <div className="check w-full mb-4 flex justify-between text-white/80 text-sm items-center">
+                          <div className="flex gap-2">
+                              <input type="checkbox" id="rememberMe" className="accent-ping-300" />   
+                              <label htmlFor="rememberMe"> Remember me</label>
+                          </div>
+                          <a href="#" className="hover:text-pink-500">Forgot Password</a>
+                      </div>
+                      <div className="input w-full mb-4 ">
+                          <button 
+                          className="btn w-full bg-pink-300 hover:bg-pink-600 text-white font-semibold py-2 rounded-md shadow-lg">
+                              Sign in
+                          </button>
+                      </div>
+                      <div className="sign-up text-center">
+                          <p className="mb-1 text-white/80">Don't have an account?</p>
+                          <a href="/register" className="w-full text-pink-300 hover:text-pink-400">Sign Up</a>
+                      </div>
+                  </div>
+                </form>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">Email</label>
-            <input
-              type="email"
-              placeholder="Nhập email của bạn"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-              autoComplete="email"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-400 focus:outline-none"
-            />
-          </div>
+            </div>
+        </div>
 
-          <div>
-            <label className="block text-gray-700 font-medium mb-2">Mật khẩu</label>
-            <input
-              type="password"
-              placeholder="Nhập mật khẩu"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-              autoComplete="current-password"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-400 focus:outline-none"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full bg-pink-500 text-white py-2 rounded-lg hover:bg-pink-600 transition"
-          >
-            Đăng nhập
-          </button>
-
-          {message && (
-            <p className="text-center text-sm text-gray-700 mt-2">{message}</p>
-          )}
-
-          <p className="text-center text-gray-600 text-sm mt-4">
-            Chưa có tài khoản?{" "}
-            <Link to="/register" className="text-pink-500 hover:underline">
-              Đăng ký ngay
-            </Link>
-          </p>
-        </form>
-      </div>
-    </div>
-  );
-}
+    );}

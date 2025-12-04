@@ -1,21 +1,22 @@
-// src/pages/Messenger.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
+import { SocketContext } from '../App.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
-import io from 'socket.io-client';
 import axios from 'axios';
+import { MessageCircle, Send, Clock, Search, Phone, Video, MoreVertical, Sparkles } from 'lucide-react';
 
 export default function Messenger() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [socket, setSocket] = useState(null);
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
   const API_URL = import.meta.env.VITE_API_URL;
+  const socket = useContext(SocketContext);
 
   // ✅ Load user
   useEffect(() => {
@@ -32,29 +33,17 @@ export default function Messenger() {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
 
-
   // ✅ Socket connection
   useEffect(() => {
-    if (!user) return;
+    if (!socket || !user) return;
 
-    console.log('🔌 Connecting to socket...');
-    const newSocket = io(`${API_URL}`, {
-      transports: ['websocket'],
-      reconnection: true
-    });
-    
-    newSocket.on('connect', () => {
-      console.log('✅ Socket connected:', newSocket.id);
-      newSocket.emit('join_conversations', user.id);
-    });
+    socket.emit("join_conversation", user.id);
 
-    newSocket.on('new_message', ({ conversationId, message }) => {
+    socket.on('new_message', ({ conversationId, message }) => {
       console.log('📩 New message received:', { conversationId, message });
 
-      // ✅ Chỉ xử lý nếu đang xem conversation hiện tại
       if (selectedConversationRef.current?._id === conversationId) {
         setMessages(prev => {
-          // 1️⃣ Nếu có tempId trùng, thay thế tin tạm bằng tin thật
           const tempIndex = prev.findIndex(m => m._id === message.tempId);
           if (tempIndex !== -1) {
             const updated = [...prev];
@@ -68,10 +57,8 @@ export default function Messenger() {
             return updated;
           }
 
-          // 2️⃣ Nếu đã tồn tại tin thật, tránh thêm trùng
           if (prev.some(m => m._id === message._id)) return prev;
 
-          // 3️⃣ Thêm mới nếu chưa có
           return [...prev, {
             _id: message._id,
             senderId: message.senderId,
@@ -82,7 +69,6 @@ export default function Messenger() {
         });
       }
 
-      // Cập nhật conversations (lastMessage & unreadCount)
       setConversations(prev => prev.map(conv => {
         if (conv._id === conversationId) {
           return {
@@ -97,34 +83,28 @@ export default function Messenger() {
       }).sort((a, b) => new Date(b.lastMessage?.timestamp) - new Date(a.lastMessage?.timestamp)));
     });
 
-
-    newSocket.on('partner_typing', ({ conversationId, isTyping: typing }) => {
+    socket.on('partner_typing', ({ conversationId, isTyping: typing }) => {
       if (selectedConversationRef.current?._id === conversationId) {
         setIsTyping(typing);
       }
     });
 
-    setSocket(newSocket);
-
     return () => {
-      console.log('🔌 Disconnecting socket');
-      newSocket.disconnect();
+      socket.off('new_message');
+      socket.off('partner_typing');
     };
-  }, [user]); 
+  }, [user, socket]); 
 
   // ✅ Fetch conversations
   const fetchConversations = async () => {
     if (!user) return;
     
     try {
-      const res = await axios.get(
-        `${API_URL}/api/conversations?userId=${user.id}`
-      );
+      const res = await axios.get(`${API_URL}/api/conversations?userId=${user.id}`);
       
       if (res.data.success) {
         setConversations(res.data.conversations);
         
-        // ✅ Auto select conversation from navigation state
         const targetConvId = location.state?.conversationId;
         if (targetConvId && !selectedConversation) {
           const conv = res.data.conversations.find(c => c._id === targetConvId);
@@ -144,7 +124,6 @@ export default function Messenger() {
     }
   }, [user]);
 
-  // ✅ Auto-scroll messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -155,21 +134,17 @@ export default function Messenger() {
     setSelectedConversation(conv);
     
     try {
-      const res = await axios.get(
-        `${API_URL}/api/messages/${conv._id}`
-      );
+      const res = await axios.get(`${API_URL}/api/messages/${conv._id}`);
       
       if (res.data.success) {
         console.log('📬 Loaded messages:', res.data.messages.length);
         setMessages(res.data.messages);
       }
 
-      // Mark as read
       if (socket) {
         socket.emit('mark_as_read', { conversationId: conv._id });
       }
 
-      // Update local state
       setConversations(prev => prev.map(c => 
         c._id === conv._id ? { ...c, unreadCount: 0 } : c
       ));
@@ -183,19 +158,12 @@ export default function Messenger() {
   const handleSendMessage = (e) => {
     e.preventDefault();
     
-    if (!socket || !input.trim() || !selectedConversation) {
-      console.warn('Cannot send message:', { socket: !!socket, input, conv: !!selectedConversation });
-      return;
-    }
-
-    console.log('📤 Sending message:', input);
-
+    if (!socket || !input.trim() || !selectedConversation) return;
 
     const tempId = Date.now().toString();
 
-    // Add to local state immediately (optimistic update)
     const tempMessage = {
-      _id: Date.now().toString(),
+      _id: tempId,
       senderId: user.id,
       content: input,
       timestamp: new Date().toISOString(),
@@ -205,7 +173,6 @@ export default function Messenger() {
     
     setMessages(prev => [...prev, tempMessage]);
 
-    // Send via socket
     socket.emit('send_message', {
       conversationId: selectedConversation._id,
       message: input,
@@ -232,157 +199,247 @@ export default function Messenger() {
     }
   };
 
-  // Format time
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now - date;
     
     if (diff < 60000) return 'Vừa xong';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} phút trước`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} giờ trước`;
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} phút`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} giờ`;
     return date.toLocaleDateString('vi-VN');
   };
+
+  const filteredConversations = conversations.filter(conv =>
+    conv.partnerName?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (!user) return null;
 
   return (
-    <div className="flex h-screen bg-gray-100 pt-20">
-      {/* Sidebar - Conversations */}
-      <div className="w-1/3 bg-white border-r overflow-y-auto">
-        <div className="p-4 border-b">
-          <h2 className="text-2xl font-bold text-gray-800">Tin nhắn</h2>
-        </div>
-
-        {conversations.length === 0 ? (
-          <div className="text-center p-8 text-gray-500">
-            <p className="mb-4">Chưa có cuộc trò chuyện nào</p>
-            <button
-              onClick={() => navigate('/chat')}
-              className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
-            >
-              Tìm người mới
-            </button>
-          </div>
-        ) : (
-          conversations.map(conv => (
-            <div
-              key={conv._id}
-              onClick={() => handleSelectConversation(conv)}
-              className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition ${
-                selectedConversation?._id === conv._id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-                  {conv.partnerName?.[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold truncate">{conv.partnerName}</h3>
-                  <p className="text-sm text-gray-600 truncate">
-                    {conv.lastMessage?.text || 'Bắt đầu trò chuyện...'}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {conv.lastMessage?.timestamp && formatTime(conv.lastMessage.timestamp)}
-                  </p>
-                </div>
-                {conv.unreadCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full flex-shrink-0">
-                    {conv.unreadCount}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
-        )}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pt-20">
+      {/* Animated background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+        <div className="absolute top-40 right-10 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{animationDelay: '2s'}}></div>
+        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{animationDelay: '4s'}}></div>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-white">
-        {selectedConversation ? (
-          <>
-            {/* Header */}
-            <div className="bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600 p-4 text-white flex items-center space-x-3 shadow-md">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold">
-                {selectedConversation.partnerName?.[0]?.toUpperCase()}
+      <div className="relative z-10 h-[calc(100vh-5rem)] max-w-7xl mx-auto p-6">
+        <div className="h-full grid grid-cols-12 gap-6">
+          {/* Sidebar - Conversations */}
+          <div className="col-span-4 bg-slate-800/90 backdrop-blur-xl border border-white/20 rounded-3xl overflow-hidden flex flex-col">
+            {/* Sidebar Header */}
+            <div className="p-6 border-b border-white/10">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <MessageCircle className="w-8 h-8 text-pink-400" />
+                  Tin nhắn
+                </h2>
+                <Sparkles className="w-6 h-6 text-yellow-400 animate-pulse" />
               </div>
-              <div>
-                <h3 className="font-semibold">{selectedConversation.partnerName}</h3>
-                {isTyping && (
-                  <p className="text-xs text-pink-100">đang nhập...</p>
-                )}
+              
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/50" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm kiếm..."
+                  className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-br from-pink-50/30 to-purple-50/30">
-              {messages.length === 0 ? (
-                <div className="text-center text-gray-400 mt-20">
-                  <p>Chưa có tin nhắn nào</p>
-                  <p className="text-sm mt-2">Hãy bắt đầu cuộc trò chuyện! 💬</p>
+            {/* Conversations List */}
+            <div className="flex-1 overflow-y-auto">
+              {filteredConversations.length === 0 ? (
+                <div className="text-center p-8 text-white/60">
+                  <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p className="mb-4">Chưa có cuộc trò chuyện nào</p>
+                  <button
+                    onClick={() => navigate('/chat')}
+                    className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-xl hover:shadow-lg hover:shadow-pink-500/50 transition-all"
+                  >
+                    Tìm người mới
+                  </button>
                 </div>
               ) : (
-                messages.map((msg, index) => (
+                filteredConversations.map(conv => (
                   <div
-                    key={msg._id || index}
-                    className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                    key={conv._id}
+                    onClick={() => handleSelectConversation(conv)}
+                    className={`p-4 border-b border-white/5 cursor-pointer transition-all ${
+                      selectedConversation?._id === conv._id 
+                        ? 'bg-purple-500/20 border-l-4 border-purple-500' 
+                        : 'hover:bg-white/5'
+                    }`}
                   >
-                    <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow ${
-                        msg.senderId === user.id
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-none'
-                          : 'bg-white text-gray-800 rounded-bl-none border'
-                      }`}
-                    >
-                      <p className="break-words">{msg.content}</p>
-                      <p className={`text-xs mt-1 ${msg.senderId === user.id ? 'text-blue-100' : 'text-gray-400'}`}>
-                        {msg.timestamp && formatTime(msg.timestamp)}
-                      </p>
+                    <div className="flex items-center space-x-3">
+                      <div className="relative flex-shrink-0">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold">
+                          {conv.partnerName?.[0]?.toUpperCase()}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-slate-800 rounded-full"></div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-white truncate">{conv.partnerName}</h3>
+                        <p className="text-sm text-white/60 truncate">
+                          {conv.lastMessage?.text || 'Bắt đầu trò chuyện...'}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Clock className="w-3 h-3 text-white/40" />
+                          <p className="text-xs text-white/40">
+                            {conv.lastMessage?.timestamp && formatTime(conv.lastMessage.timestamp)}
+                          </p>
+                        </div>
+                      </div>
+                      {conv.unreadCount > 0 && (
+                        <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full flex-shrink-0 font-semibold">
+                          {conv.unreadCount}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))
               )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <form onSubmit={handleSendMessage} className="bg-white p-4 border-t shadow-lg">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    handleTyping();
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                  placeholder="Nhập tin nhắn..."
-                  className="flex-1 px-4 py-3 border-2 border-purple-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                >
-                  Gửi
-                </button>
-              </div>
-            </form>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
-            <div className="text-center">
-              <div className="text-6xl mb-4">💬</div>
-              <p className="text-lg">Chọn một cuộc trò chuyện để bắt đầu</p>
             </div>
           </div>
-        )}
+
+          {/* Chat Area */}
+          <div className="col-span-8 bg-slate-800/90 backdrop-blur-xl border border-white/20 rounded-3xl overflow-hidden flex flex-col">
+            {selectedConversation ? (
+              <>
+                {/* Chat Header */}
+                <div className="bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600 p-6 flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-white text-xl backdrop-blur-sm">
+                        {selectedConversation.partnerName?.[0]?.toUpperCase()}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white text-lg">{selectedConversation.partnerName}</h3>
+                      {isTyping ? (
+                        <p className="text-xs text-pink-200 flex items-center gap-1">
+                          <span className="animate-pulse">đang nhập</span>
+                          <span className="animate-bounce">.</span>
+                          <span className="animate-bounce" style={{animationDelay: '0.2s'}}>.</span>
+                          <span className="animate-bounce" style={{animationDelay: '0.4s'}}>.</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-pink-200">Đang hoạt động</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all backdrop-blur-sm">
+                      <Phone className="w-5 h-5 text-white" />
+                    </button>
+                    <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all backdrop-blur-sm">
+                      <Video className="w-5 h-5 text-white" />
+                    </button>
+                    <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all backdrop-blur-sm">
+                      <MoreVertical className="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-br from-slate-900/50 to-purple-900/50">
+                  {messages.length === 0 ? (
+                    <div className="text-center text-white/40 mt-32">
+                      <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg">Chưa có tin nhắn nào</p>
+                      <p className="text-sm mt-2">Hãy bắt đầu cuộc trò chuyện! 💬</p>
+                    </div>
+                  ) : (
+                    messages.map((msg, index) => (
+                      <div
+                        key={msg._id || index}
+                        className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                      >
+                        <div className="max-w-md group">
+                          <div className="relative">
+                            {msg.senderId !== user.id && (
+                              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                            )}
+                            {msg.senderId === user.id && (
+                              <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-3xl blur opacity-30 group-hover:opacity-50 transition-opacity"></div>
+                            )}
+                            
+                            <div
+                              className={`relative px-6 py-4 rounded-3xl shadow-xl backdrop-blur-sm ${
+                                msg.senderId === user.id
+                                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-br-md'
+                                  : 'bg-slate-800/90 border border-white/20 text-white rounded-bl-md'
+                              }`}
+                            >
+                              <p className="break-words leading-relaxed">{msg.content}</p>
+                              {msg.timestamp && (
+                                <p className={`text-xs mt-2 ${msg.senderId === user.id ? 'text-pink-200' : 'text-white/50'}`}>
+                                  {formatTime(msg.timestamp)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input */}
+                <form onSubmit={handleSendMessage} className="p-6 bg-slate-900/50 backdrop-blur-xl border-t border-white/10">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 relative group">
+                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition-opacity"></div>
+                      <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => {
+                          setInput(e.target.value);
+                          handleTyping();
+                        }}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(e);
+                          }
+                        }}
+                        placeholder="Nhập tin nhắn..."
+                        className="relative w-full px-6 py-4 bg-slate-800/90 border-2 border-white/20 rounded-2xl text-white placeholder-white/50 focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:outline-none transition-all"
+                        autoFocus
+                      />
+                    </div>
+                    
+                    <button
+                      type="submit"
+                      disabled={!input.trim()}
+                      className="group relative p-4 overflow-hidden rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl transition-all group-hover:scale-110"></div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                      <Send className="relative w-6 h-6 text-white transform group-hover:scale-110 transition-transform" />
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-white/60">
+                <div className="text-center">
+                  <MessageCircle className="w-24 h-24 mx-auto mb-6 opacity-50" />
+                  <p className="text-2xl font-semibold mb-2">Chọn cuộc trò chuyện</p>
+                  <p className="text-white/40">Chọn một cuộc trò chuyện để bắt đầu nhắn tin</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* CSS */}
@@ -390,7 +447,7 @@ export default function Messenger() {
         @keyframes fadeIn {
           from {
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(15px);
           }
           to {
             opacity: 1;
@@ -398,7 +455,23 @@ export default function Messenger() {
           }
         }
         .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
+          animation: fadeIn 0.4s ease-out;
+        }
+        
+        /* Custom scrollbar */
+        .overflow-y-auto::-webkit-scrollbar {
+          width: 8px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-thumb {
+          background: rgba(168, 85, 247, 0.5);
+          border-radius: 10px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+          background: rgba(168, 85, 247, 0.7);
         }
       `}</style>
     </div>
