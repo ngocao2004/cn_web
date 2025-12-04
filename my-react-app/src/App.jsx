@@ -24,6 +24,8 @@ export default function App() {
         <Route path="/messenger" element={<Messenger />} />
         <Route path="/complete-profile" element={<CompleteProfile />} />
       </Routes>
+      <h1>TEST GITHUB</h1>
+
     </Router>
   );
 }
