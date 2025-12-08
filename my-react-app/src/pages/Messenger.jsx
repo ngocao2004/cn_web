@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import io from 'socket.io-client';
 import axios from 'axios';
+import { Heart, Smile, Image as ImageIcon, Send, HeartHandshake } from 'lucide-react';
 
 export default function Messenger() {
   const navigate = useNavigate();
@@ -247,142 +248,187 @@ export default function Messenger() {
   if (!user) return null;
 
   return (
-    <div className="flex h-screen bg-gray-100 pt-20">
-      {/* Sidebar - Conversations */}
-      <div className="w-1/3 bg-white border-r overflow-y-auto">
-        <div className="p-4 border-b">
-          <h2 className="text-2xl font-bold text-gray-800">Tin nhắn</h2>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#fff1f5] via-[#fde5ef] to-[#ede9ff] pt-20">
+      <div className="mx-auto flex h-[calc(100vh-5rem)] w-full max-w-6xl flex-col rounded-[40px] border border-white/50 bg-white/30 p-6 shadow-[0_50px_120px_-60px_rgba(233,114,181,0.55)] backdrop-blur-xl">
+        <header className="flex items-center gap-3 rounded-[28px] border border-white/60 bg-white/50 px-6 py-4 text-sm font-semibold text-rose-500">
+          <Heart className="h-5 w-5 text-rose-400" />
+          <span>Kết nối đang chờ bạn • HUSTLove Messenger</span>
+        </header>
 
-        {conversations.length === 0 ? (
-          <div className="text-center p-8 text-gray-500">
-            <p className="mb-4">Chưa có cuộc trò chuyện nào</p>
-            <button
-              onClick={() => navigate('/chat')}
-              className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
-            >
-              Tìm người mới
-            </button>
-          </div>
-        ) : (
-          conversations.map(conv => (
-            <div
-              key={conv._id}
-              onClick={() => handleSelectConversation(conv)}
-              className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition ${
-                selectedConversation?._id === conv._id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-              }`}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-                  {conv.partnerName?.[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold truncate">{conv.partnerName}</h3>
-                  <p className="text-sm text-gray-600 truncate">
-                    {conv.lastMessage?.text || 'Bắt đầu trò chuyện...'}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {conv.lastMessage?.timestamp && formatTime(conv.lastMessage.timestamp)}
-                  </p>
-                </div>
-                {conv.unreadCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full flex-shrink-0">
-                    {conv.unreadCount}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-white">
-        {selectedConversation ? (
-          <>
-            {/* Header */}
-            <div className="bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600 p-4 text-white flex items-center space-x-3 shadow-md">
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold">
-                {selectedConversation.partnerName?.[0]?.toUpperCase()}
-              </div>
+        <div className="mt-6 grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[0.32fr_0.68fr]">
+          {/* Sidebar - Match list */}
+          <aside className="flex h-full flex-col rounded-[32px] border border-white/60 bg-white/70 p-5 shadow-[0_30px_90px_-70px_rgba(233,114,181,0.6)]">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold">{selectedConversation.partnerName}</h3>
-                {isTyping && (
-                  <p className="text-xs text-pink-100">đang nhập...</p>
-                )}
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Match list</p>
+                <h2 className="mt-2 text-lg font-semibold text-slate-800">Danh sách các cặp đôi</h2>
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-br from-pink-50/30 to-purple-50/30">
-              {messages.length === 0 ? (
-                <div className="text-center text-gray-400 mt-20">
-                  <p>Chưa có tin nhắn nào</p>
-                  <p className="text-sm mt-2">Hãy bắt đầu cuộc trò chuyện! 💬</p>
+            <div className="mt-5 flex-1 space-y-3 overflow-y-auto pr-1">
+              {conversations.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-dashed border-rose-200/70 bg-white/60 p-6 text-center text-rose-400">
+                  <p className="text-sm">Chưa có cuộc trò chuyện nào</p>
+                  <button
+                    onClick={() => navigate('/chat')}
+                    className="mt-4 rounded-full bg-gradient-to-r from-[#f7b0d2] to-[#fdd2b7] px-5 py-2 text-xs font-semibold text-white shadow-sm shadow-rose-200 transition hover:shadow-lg"
+                  >
+                    Tìm người mới
+                  </button>
                 </div>
               ) : (
-                messages.map((msg, index) => (
-                  <div
-                    key={msg._id || index}
-                    className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'} animate-fadeIn`}
-                  >
-                    <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow ${
-                        msg.senderId === user.id
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-none'
-                          : 'bg-white text-gray-800 rounded-bl-none border'
+                conversations.map((conv) => {
+                  const isActive = selectedConversation?._id === conv._id;
+                  return (
+                    <button
+                      type="button"
+                      key={conv._id}
+                      onClick={() => handleSelectConversation(conv)}
+                      className={`w-full rounded-[26px] border px-4 py-3 text-left transition-all ${
+                        isActive
+                          ? 'border-rose-300 bg-gradient-to-r from-[#ffe4f1] to-[#fde7ef] shadow-[0_20px_40px_-30px_rgba(233,114,181,0.9)]'
+                          : 'border-white/60 bg-white/60 hover:border-rose-200 hover:bg-white/80'
                       }`}
                     >
-                      <p className="break-words">{msg.content}</p>
-                      <p className={`text-xs mt-1 ${msg.senderId === user.id ? 'text-blue-100' : 'text-gray-400'}`}>
-                        {msg.timestamp && formatTime(msg.timestamp)}
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#f9b9d0] to-[#c7b6ff] text-base font-semibold text-white shadow-sm ${isActive ? 'ring-2 ring-rose-300' : ''}`}>
+                          {conv.partnerName?.[0]?.toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-slate-800">{conv.partnerName}</p>
+                          <p className="truncate text-xs text-rose-400/80">
+                            {conv.lastMessage?.text || 'Bắt đầu trò chuyện...'}
+                          </p>
+                          <p className="text-[11px] text-rose-300">
+                            {conv.lastMessage?.timestamp && formatTime(conv.lastMessage.timestamp)}
+                          </p>
+                        </div>
+                        {conv.unreadCount > 0 && (
+                          <span className="min-w-[28px] rounded-full bg-rose-400 px-2 py-1 text-center text-[11px] font-semibold text-white shadow-sm">
+                            {conv.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </aside>
+
+          {/* Chat window */}
+          <section className="flex h-full flex-col rounded-[32px] border border-white/60 bg-white/75 shadow-[0_40px_120px_-70px_rgba(233,114,181,0.65)]">
+            {selectedConversation ? (
+              <>
+                <header className="flex items-center justify-between rounded-t-[32px] border-b border-white/60 bg-white/70 px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#f7b0d2] to-[#fdd2b7] text-lg font-semibold text-white shadow-sm">
+                      {selectedConversation.partnerName?.[0]?.toUpperCase()}
+                      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-rose-400 shadow">♥</span>
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold text-slate-800">{selectedConversation.partnerName}</p>
+                      <p className="text-xs font-medium uppercase tracking-[0.28em] text-rose-300">
+                        {selectedConversation.partnerClass || 'HUST K65'}
                       </p>
+                      {isTyping && <p className="text-[11px] text-rose-400">đang nhập...</p>}
                     </div>
                   </div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-rose-400">
+                    <HeartHandshake className="h-4 w-4" />
+                    <span>Kết nối an toàn</span>
+                  </div>
+                </header>
 
-            {/* Input */}
-            <form onSubmit={handleSendMessage} className="bg-white p-4 border-t shadow-lg">
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    handleTyping();
-                  }}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                  placeholder="Nhập tin nhắn..."
-                  className="flex-1 px-4 py-3 border-2 border-purple-200 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-full hover:shadow-lg transform hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                >
-                  Gửi
-                </button>
+                <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.7),_rgba(255,214,211,0.25)_58%,_transparent)] px-6 py-6">
+                  {messages.length === 0 ? (
+                    <div className="flex h-full flex-col items-center justify-center text-rose-300">
+                      <Heart className="mb-4 h-12 w-12" />
+                      <p className="text-sm font-medium">Chưa có tin nhắn nào</p>
+                      <p className="text-xs mt-1">Hãy gửi lời chào để mở đầu câu chuyện ✨</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {messages.map((msg, index) => {
+                        const isSelf = msg.senderId === user.id;
+                        return (
+                          <div
+                            key={msg._id || index}
+                            className={`flex ${isSelf ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                          >
+                            <div
+                              className={`max-w-[78%] rounded-3xl px-4 py-3 text-sm shadow ${
+                                isSelf
+                                  ? 'bg-gradient-to-r from-[#f7b0d2] via-[#f59fb6] to-[#fdd2b7] text-white'
+                                  : 'bg-white/85 text-slate-700'
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                              <p className={`mt-2 text-[11px] font-medium ${isSelf ? 'text-white/70' : 'text-rose-300'}`}>
+                                {msg.timestamp && formatTime(msg.timestamp)}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                <form onSubmit={handleSendMessage} className="rounded-b-[32px] border-t border-white/60 bg-white/80 px-5 py-4">
+                  <div className="flex items-center gap-3 rounded-full border border-rose-200 bg-white/70 px-4 py-2 shadow-sm shadow-rose-100">
+                    <button
+                      type="button"
+                      className="rounded-full p-2 text-rose-300 transition hover:bg-rose-50 hover:text-rose-400"
+                      aria-label="Gửi reaction"
+                    >
+                      <Smile className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full p-2 text-rose-300 transition hover:bg-rose-50 hover:text-rose-400"
+                      aria-label="Gửi ảnh"
+                    >
+                      <ImageIcon className="h-5 w-5" />
+                    </button>
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => {
+                        setInput(e.target.value);
+                        handleTyping();
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      placeholder="Gửi lời yêu thương..."
+                      className="flex-1 bg-transparent text-sm text-slate-700 placeholder-rose-300 outline-none"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      disabled={!input.trim()}
+                      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#f7b0d2] via-[#f59fb6] to-[#fdd2b7] px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-rose-200 transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Send className="h-4 w-4" />
+                      Gửi
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center text-rose-300">
+                <Heart className="mb-4 h-14 w-14" />
+                <p className="text-base font-semibold">Chọn một cuộc trò chuyện để bắt đầu</p>
+                <p className="text-xs mt-2">Những rung động mới đang đợi bạn ở ngay bên trái</p>
               </div>
-            </form>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
-            <div className="text-center">
-              <div className="text-6xl mb-4">💬</div>
-              <p className="text-lg">Chọn một cuộc trò chuyện để bắt đầu</p>
-            </div>
-          </div>
-        )}
+            )}
+          </section>
+        </div>
       </div>
 
       {/* CSS */}

@@ -1,474 +1,337 @@
-import { useState, useEffect, useRef } from 'react';
-import { Heart, MessageCircle, Send, Trash2, MoreVertical, X, Image as ImageIcon } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  GraduationCap,
+  Heart,
+  MapPin,
+  RotateCcw,
+  Sparkles,
+  X as XIcon,
+} from 'lucide-react';
 
-export default function Feed() {
-  const [user, setUser] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreatePost, setShowCreatePost] = useState(false);
-  const [newPost, setNewPost] = useState({ content: '', images: [] });
-  const [selectedImages, setSelectedImages] = useState([]);
-  const fileInputRef = useRef(null);
-  const API_URL = import.meta.env.VITE_API_URL;
+const SAMPLE_PROFILES = [
+  {
+    id: '1',
+    name: 'Linh Nguyễn',
+    age: 21,
+    major: 'Thiết kế Đồ họa',
+    classYear: 'K65',
+    distance: '750m',
+    location: 'Ký túc xá A',
+    bio: 'Tin vào những điều ngọt ngào, cà phê latte và những chiều mưa Hà Nội. Thích vẽ ký họa và đang học làm bánh macaron.',
+    interests: ['Vẽ minh họa', 'Acoustic', 'Trà hoa', 'Đi dạo hồ Tây'],
+    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1558600874-0ef3d7c8e59f?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
+    ],
+  },
+  {
+    id: '2',
+    name: 'Minh Phương',
+    age: 22,
+    major: 'Truyền thông',
+    classYear: 'K64',
+    distance: '1.1km',
+    location: 'Phố Chùa Láng',
+    bio: 'Trưởng nhóm CLB nhiếp ảnh, luôn săn tìm những khoảnh khắc lấp lánh. Thích nói chuyện đêm khuya và đọc Haruki Murakami.',
+    interests: ['Chụp ảnh film', 'Du lịch', 'Podcast', 'Yoga nhẹ nhàng'],
+    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
+    ],
+  },
+  {
+    id: '3',
+    name: 'Bảo Anh',
+    age: 20,
+    major: 'Công nghệ Thông tin',
+    classYear: 'K66',
+    distance: '500m',
+    location: 'Giảng đường B',
+    bio: 'Coder thích nghe nhạc city pop và pha cold brew. Đang xây một app học nhóm cho khoa và mong tìm người đồng hành.',
+    interests: ['Chạy bộ', 'City pop', 'Startup idea', 'Cafe tour'],
+    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=900&q=80',
+    ],
+  },
+];
 
-  // Load user
-  useEffect(() => {
-    const userData = JSON.parse(sessionStorage.getItem('user') || '{}');
-    if (!userData.id) {
-      window.location.href = '/login';
-      return;
+export default function Home() {
+  const storedUser = useMemo(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('user') || '{}');
+    } catch (error) {
+      console.error('Cannot parse user from session storage', error);
+      return {};
     }
-    setUser(userData);
   }, []);
 
-  // Fetch posts
-  const fetchPosts = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/posts?userId=${user.id}`);
-      const data = await response.json();
-      if (data.success) {
-        setPosts(data.posts);
-      }
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [history, setHistory] = useState([]);
+  const [matchQueue] = useState(SAMPLE_PROFILES);
+  const [photoIndex, setPhotoIndex] = useState(0);
+
+  const activeProfile = matchQueue[activeIndex];
+  const photos = activeProfile?.images?.length
+    ? activeProfile.images
+    : activeProfile?.image
+    ? [activeProfile.image]
+    : [];
+  const finderName = storedUser?.name || 'Trần Văn Đức Anh';
+  const finderInitial = finderName?.charAt(0) || 'H';
+  const finderClass = storedUser?.classYear || 'K65';
+  const finderDistance = storedUser?.preferredDistance || 'Trong 3km';
+  const finderAgeRange = storedUser?.preferredAgeRange || '20 - 25 tuổi';
 
   useEffect(() => {
-    if (user) {
-      fetchPosts();
-    }
-  }, [user]);
+    setPhotoIndex(0);
+  }, [activeIndex]);
 
-  // Create post
-  const handleCreatePost = async () => {
-    if (!newPost.content.trim()) {
-      alert('Vui lòng nhập nội dung bài viết');
+  const handleNext = (action) => {
+    if (!activeProfile) return;
+
+    setHistory((prev) => [{ profile: activeProfile, action }, ...prev.slice(0, 4)]);
+
+    if (activeIndex + 1 >= matchQueue.length) {
+      setActiveIndex(matchQueue.length);
       return;
     }
 
-    try {
-      const response = await fetch(`${API_URL}/api/posts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: user.id,
-          content: newPost.content,
-          images: selectedImages.map(img => ({ url: img })),
-          privacy: 'public'
-        })
-      });
+    setActiveIndex((prev) => prev + 1);
+  };
 
-      const data = await response.json();
-      if (data.success) {
-        setPosts([data.post, ...posts]);
-        setNewPost({ content: '', images: [] });
-        setSelectedImages([]);
-        setShowCreatePost(false);
-      }
-    } catch (error) {
-      console.error('Error creating post:', error);
-      alert('Có lỗi xảy ra khi đăng bài');
+  const handleRewind = () => {
+    if (history.length === 0) return;
+    const [last, ...rest] = history;
+    const previousIndex = matchQueue.findIndex((profile) => profile.id === last.profile.id);
+    if (previousIndex >= 0) {
+      setActiveIndex(previousIndex);
+      setHistory(rest);
     }
   };
 
-  // Like post
-  const handleLike = async (postId) => {
-    try {
-      const response = await fetch(`${API_URL}/api/posts/${postId}/like`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
-      });
+  const handleNextPhoto = () => {
+    if (photos.length <= 1) return;
+    setPhotoIndex((prev) => (prev + 1) % photos.length);
+  };
 
-      const data = await response.json();
-      if (data.success) {
-        setPosts(posts.map(post => 
-          post._id === postId 
-            ? { ...post, likeCount: data.likeCount, isLiked: data.isLiked }
-            : post
-        ));
-      }
-    } catch (error) {
-      console.error('Error liking post:', error);
+  const handlePrevPhoto = () => {
+    if (photos.length <= 1) return;
+    setPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
+  };
+
+  const statusText = () => {
+    if (!activeProfile) {
+      return '🎉 Hết profile rồi! Quay lại sau để gặp thêm người mới nhé ~';
+    }
+    switch (history[0]?.action) {
+      case 'like':
+        return 'Bạn đã gửi một trái tim. Hãy xem điều kỳ diệu có xảy ra không nhé!';
+      case 'nope':
+        return 'Không sao cả, người dành cho bạn đang ở rất gần thôi.';
+      default:
+        return `${matchQueue.length - activeIndex - 1} profile đang đợi bạn khám phá.`;
     }
   };
-
-  // Delete post
-  const handleDeletePost = async (postId) => {
-    if (!window.confirm('Bạn có chắc muốn xóa bài viết này?')) return;
-
-    try {
-      const response = await fetch(`${API_URL}/api/posts/${postId}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setPosts(posts.filter(post => post._id !== postId));
-      }
-    } catch (error) {
-      console.error('Error deleting post:', error);
-    }
-  };
-
-  // Handle image selection
-  const handleImageSelect = (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length + selectedImages.length > 5) {
-      alert('Chỉ được tải tối đa 5 ảnh');
-      return;
-    }
-
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedImages(prev => [...prev, reader.result]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // Remove image
-  const removeImage = (index) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Format time
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now - date;
-    
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    
-    if (minutes < 1) return 'Vừa xong';
-    if (minutes < 60) return `${minutes} phút trước`;
-    if (hours < 24) return `${hours} giờ trước`;
-    if (days < 7) return `${days} ngày trước`;
-    return date.toLocaleDateString('vi-VN');
-  };
-
-  if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-100 pt-16">
-      <div className="max-w-2xl mx-auto p-4">
-        {/* Create Post Card */}
-        <div className="bg-white rounded-2xl shadow-md p-4 mb-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold">
-              {user.name?.[0]}
-            </div>
-            <button
-              onClick={() => setShowCreatePost(true)}
-              className="flex-1 bg-gray-100 hover:bg-gray-200 rounded-full px-4 py-2 text-left text-gray-600"
-            >
-              {user.name} ơi, bạn đang nghĩ gì?
-            </button>
-          </div>
+    <div className="min-h-screen bg-gradient-to-b from-[#fff1f5] via-[#fde5ef] to-[#ede9ff]">
+      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center px-4 pt-24 pb-16">
+        <div className="flex w-full max-w-md flex-col items-center text-center text-sm text-rose-500/80">
+          <span className="font-medium uppercase tracking-[0.35em]">find love</span>
+          <p className="mt-2 text-[15px] text-rose-600/90">
+            Chào {storedUser?.name?.split(' ')[0] || 'bạn'}, những nhịp tim mới đang chờ bạn ngay hôm nay 💕
+          </p>
         </div>
 
-        {/* Create Post Modal */}
-        {showCreatePost && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-lg w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold">Tạo bài viết</h3>
-                <button onClick={() => setShowCreatePost(false)}>
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                  {user.name?.[0]}
-                </div>
-                <div>
-                  <p className="font-semibold">{user.name}</p>
-                  <p className="text-xs text-gray-500">Công khai</p>
+        <div className="mt-12 flex w-full flex-1 flex-col items-center justify-center">
+          <div className="flex w-full flex-col items-center gap-10 lg:flex-row lg:items-stretch lg:justify-between">
+            <aside className="hidden w-full max-w-[280px] flex-col gap-6 rounded-[36px] border border-white/40 bg-white/25 p-6 text-sm text-rose-500 shadow-[0_28px_90px_-60px_rgba(188,144,255,0.6)] backdrop-blur-xl lg:flex">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400/80">Search metrics</h3>
+                <div className="mt-5 space-y-4">
+                  <div className="flex items-center justify-between rounded-[24px] border border-white/50 bg-white/45 px-4 py-3 text-xs text-slate-600">
+                    <span className="font-semibold text-rose-500/90">Khoảng cách</span>
+                    <span className="rounded-full bg-white/70 px-3 py-1 font-medium text-teal-500">{finderDistance}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-[24px] border border-white/50 bg-white/45 px-4 py-3 text-xs text-slate-600">
+                    <span className="font-semibold text-rose-500/90">Độ tuổi</span>
+                    <span className="rounded-full bg-white/70 px-3 py-1 font-medium text-teal-500">{finderAgeRange}</span>
+                  </div>
                 </div>
               </div>
+            </aside>
 
-              <textarea
-                value={newPost.content}
-                onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-                placeholder={`${user.name} ơi, bạn đang nghĩ gì?`}
-                className="w-full p-3 border-0 focus:outline-none resize-none"
-                rows="4"
-                autoFocus
-              />
+            <div className="flex w-full max-w-md flex-col items-center gap-10">
+              <div className="relative w-full">
+                <div className="absolute -inset-2 rounded-[48px] bg-gradient-to-br from-rose-200/60 via-[#ffd6c7] to-transparent opacity-70 blur-3xl" />
 
-              {/* Image Preview */}
-              {selectedImages.length > 0 && (
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  {selectedImages.map((img, index) => (
-                    <div key={index} className="relative">
-                      <img src={img} alt="" className="w-full h-40 object-cover rounded-lg" />
-                      <button
-                        onClick={() => removeImage(index)}
-                        className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                <div className="relative mx-auto overflow-hidden rounded-[48px] border border-white/50 bg-white/30 shadow-[0_55px_150px_-65px_rgba(233,114,181,0.95)] backdrop-blur-2xl">
+                  {activeProfile ? (
+                    <article className="relative h-full min-h-[82vh] max-h-[88vh] w-full aspect-[9/16]">
+                      {photos.length > 0 && (
+                        <img
+                          src={photos[photoIndex]}
+                          alt={activeProfile.name}
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-rose-950/75 via-rose-900/35 to-transparent" />
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.32),_transparent_60%)]" />
+
+                      {photos.length > 1 && (
+                        <div className="absolute top-6 left-1/2 flex -translate-x-1/2 gap-2">
+                          {photos.map((_, index) => (
+                            <span
+                              key={`${activeProfile.id}-indicator-${index}`}
+                              className={`h-[3px] w-10 rounded-full transition ${
+                                index === photoIndex ? 'bg-white/90' : 'bg-white/40'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {photos.length > 1 && (
+                        <>
+                          <button
+                            onClick={handlePrevPhoto}
+                            aria-label="Xem ảnh trước"
+                            className="absolute inset-y-0 left-0 w-1/3 rounded-l-[48px] bg-gradient-to-r from-black/10 to-transparent text-white opacity-0 transition hover:opacity-100"
+                          />
+                          <button
+                            onClick={handleNextPhoto}
+                            aria-label="Xem ảnh tiếp theo"
+                            className="absolute inset-y-0 right-0 w-1/3 rounded-r-[48px] bg-gradient-to-l from-black/10 to-transparent text-white opacity-0 transition hover:opacity-100"
+                          />
+                        </>
+                      )}
+
+                      <div className="absolute inset-x-0 bottom-0 p-7 text-white md:p-9">
+                        <div className="flex flex-wrap items-end gap-3 text-4xl font-semibold tracking-tight md:text-5xl">
+                          <h2>{activeProfile.name}</h2>
+                          <span className="rounded-full bg-white/15 px-3 py-1 text-lg font-medium">{activeProfile.age}</span>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap items-center gap-3 text-sm font-semibold text-teal-100">
+                          <span className="flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-teal-100">
+                            <GraduationCap className="h-4 w-4 text-teal-100" />
+                            {activeProfile.major} · {activeProfile.classYear}
+                          </span>
+                          <span className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-rose-50/90">
+                            <MapPin className="h-4 w-4" />
+                            {activeProfile.location} · {activeProfile.distance}
+                          </span>
+                        </div>
+
+                        <p className="mt-6 max-w-xl text-base leading-relaxed text-rose-50/95">{activeProfile.bio}</p>
+
+                        <div className="mt-6 flex flex-wrap gap-2">
+                          {activeProfile.interests.map((interest) => (
+                            <span
+                              key={interest}
+                              className="flex items-center gap-2 rounded-xl border border-teal-200/70 bg-white/12 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-teal-100/90"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                              {interest}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </article>
+                  ) : (
+                    <div className="flex h-[82vh] flex-col items-center justify-center gap-5 text-center">
+                      <div className="rounded-full bg-white/60 p-6 text-rose-400 shadow-inner">
+                        <Heart className="h-12 w-12" />
+                      </div>
+                      <div className="max-w-md text-rose-500">
+                        <h3 className="text-2xl font-semibold">Bạn đã khám phá tất cả hôm nay rồi ✨</h3>
+                        <p className="mt-3 text-sm leading-relaxed text-rose-400">
+                          Hãy quay lại vào lúc khác để gặp thêm những tâm hồn đẹp nhé!
+                        </p>
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-
-              <div className="border-t pt-3">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-100 rounded-lg w-full"
-                >
-                  <ImageIcon className="w-5 h-5 text-green-500" />
-                  <span>Ảnh/Video</span>
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageSelect}
-                  className="hidden"
-                />
               </div>
 
-              <button
-                onClick={handleCreatePost}
-                disabled={!newPost.content.trim()}
-                className="w-full mt-4 bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Đăng
-              </button>
+              <div className="flex flex-col items-center gap-6">
+                <div className="flex items-center justify-center gap-8">
+                  <button
+                    onClick={() => handleNext('nope')}
+                    disabled={!activeProfile}
+                    className="group flex h-16 w-16 items-center justify-center rounded-full bg-white text-rose-300 shadow-[0_20px_45px_-20px_rgba(244,114,182,0.75)] transition hover:scale-105 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label="Không phải gu của bạn"
+                  >
+                    <XIcon className="h-8 w-8 transition group-hover:scale-110" />
+                  </button>
+                  <button
+                    onClick={handleRewind}
+                    disabled={history.length === 0}
+                    className="group flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-amber-400 shadow-[0_20px_45px_-25px_rgba(251,191,36,0.7)] transition hover:scale-105 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Quay lại profile trước"
+                  >
+                    <RotateCcw className="h-6 w-6 transition group-hover:rotate-[-12deg]" />
+                  </button>
+                  <button
+                    onClick={() => handleNext('like')}
+                    disabled={!activeProfile}
+                    className="group flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#f7b0d2] via-[#f59fb6] to-[#fdd2b7] text-white shadow-[0_35px_75px_-28px_rgba(244,114,182,0.85)] transition hover:scale-110 disabled:cursor-not-allowed disabled:opacity-70"
+                    aria-label="Gửi trái tim"
+                  >
+                    <Heart className="h-9 w-9 fill-current transition group-hover:scale-110" />
+                  </button>
+                </div>
+
+                <p className="text-center text-sm font-medium text-rose-500/90">{statusText()}</p>
+
+                {history.length > 0 && (
+                  <div className="flex flex-wrap justify-center gap-2 text-xs font-semibold text-rose-400/90">
+                    {history.map(({ profile, action }) => (
+                      <span
+                        key={`${profile.id}-${action}`}
+                        className="rounded-full bg-white/60 px-3 py-1 backdrop-blur-sm"
+                      >
+                        {profile.name} · {action === 'like' ? 'đã nhận trái tim' : 'đã lướt qua'}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Posts Feed */}
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-md p-8 text-center">
-            <p className="text-gray-500 mb-4">Chưa có bài viết nào</p>
-            <button
-              onClick={() => setShowCreatePost(true)}
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
-            >
-              Tạo bài viết đầu tiên
-            </button>
-          </div>
-        ) : (
-          posts.map(post => (
-            <PostCard
-              key={post._id}
-              post={post}
-              currentUser={user}
-              onLike={handleLike}
-              onDelete={handleDeletePost}
-              formatTime={formatTime}
-            />
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
+            <aside className="hidden w-full max-w-[280px] flex-col gap-6 rounded-[36px] border border-white/40 bg-white/25 p-6 text-sm text-rose-500 shadow-[0_28px_90px_-60px_rgba(188,144,255,0.6)] backdrop-blur-xl lg:flex">
+              <div>
+                <h3 className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400/80">HUST community</h3>
+                <div className="mt-4 rounded-[28px] border border-white/45 bg-white/40 p-4">
+                  <span className="text-[11px] uppercase tracking-[0.3em] text-rose-300">Upcoming events</span>
+                  <p className="mt-2 text-sm font-semibold text-slate-800">Robotics Workshop</p>
+                  <p className="text-xs text-slate-500">TQB Library · 08/12 · 18:00</p>
+                  <button className="mt-4 w-full rounded-full bg-rose-500/90 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-rose-200 transition hover:bg-rose-500">
+                    Thêm vào lịch
+                  </button>
+                </div>
+              </div>
 
-// Post Card Component
-function PostCard({ post, currentUser, onLike, onDelete, formatTime }) {
-  const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
-  const [showMenu, setShowMenu] = useState(false);
-
-  const isMyPost = post.userId?._id === currentUser.id;
-
-  // Fetch comments
-  const fetchComments = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/posts/${post._id}/comments`);
-      const data = await response.json();
-      if (data.success) {
-        setComments(data.comments);
-      }
-    } catch (error) {
-      console.error('Error fetching comments:', error);
-    }
-  };
-
-  // Post comment
-  const handleComment = async () => {
-    if (!newComment.trim()) return;
-
-    try {
-      const response = await fetch(`${API_URL}/api/posts/${post._id}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUser.id,
-          content: newComment
-        })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setComments([data.comment, ...comments]);
-        setNewComment('');
-      }
-    } catch (error) {
-      console.error('Error posting comment:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (showComments) {
-      fetchComments();
-    }
-  }, [showComments]);
-
-  return (
-    <div className="bg-white rounded-2xl shadow-md mb-6 overflow-hidden">
-      {/* Header */}
-      <div className="p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold">
-            {post.userId?.name?.[0]}
-          </div>
-          <div>
-            <p className="font-semibold">{post.userId?.name}</p>
-            <p className="text-xs text-gray-500">{formatTime(post.createdAt)}</p>
-          </div>
-        </div>
-
-        {isMyPost && (
-          <div className="relative">
-            <button onClick={() => setShowMenu(!showMenu)} className="p-2 hover:bg-gray-100 rounded-full">
-              <MoreVertical className="w-5 h-5" />
-            </button>
-            {showMenu && (
-              <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-lg py-2 w-40 z-10">
-                <button
-                  onClick={() => {
-                    onDelete(post._id);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 text-red-500 flex items-center space-x-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Xóa bài viết</span>
+              <div className="rounded-[28px] border border-white/45 bg-white/35 p-5">
+                <h4 className="text-xs font-semibold uppercase tracking-[0.32em] text-rose-400">BK Crush</h4>
+                <p className="mt-3 text-xs leading-relaxed text-slate-600">
+                  Khám phá ai đang bí mật crush bạn và gửi lời nhắn dễ thương chỉ trong 1 chạm.
+                </p>
+                <button className="mt-4 w-full rounded-full border border-teal-300/70 bg-teal-100/40 px-4 py-2 text-xs font-semibold text-teal-600 transition hover:bg-teal-100">
+                  Mở BK Crush
                 </button>
               </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="px-4 pb-3">
-        <p className="whitespace-pre-wrap">{post.content}</p>
-      </div>
-
-      {/* Images */}
-      {post.images && post.images.length > 0 && (
-        <div className={`grid ${post.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} gap-1`}>
-          {post.images.map((img, index) => (
-            <img
-              key={index}
-              src={img.url}
-              alt=""
-              className="w-full h-64 object-cover"
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="px-4 py-3 flex items-center justify-between border-t">
-        <div className="flex items-center space-x-1 text-sm text-gray-600">
-          <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-red-500 text-red-500' : ''}`} />
-          <span>{post.likeCount || 0}</span>
-        </div>
-        <button
-          onClick={() => setShowComments(!showComments)}
-          className="text-sm text-gray-600"
-        >
-          {post.commentCount || 0} bình luận
-        </button>
-      </div>
-
-      {/* Buttons */}
-      <div className="px-4 py-2 border-t flex items-center gap-2">
-        <button
-          onClick={() => onLike(post._id)}
-          className={`flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-gray-100 ${
-            post.isLiked ? 'text-red-500' : 'text-gray-600'
-          }`}
-        >
-          <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
-          <span className="font-semibold">Thích</span>
-        </button>
-        <button
-          onClick={() => setShowComments(!showComments)}
-          className="flex-1 flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-gray-100 text-gray-600"
-        >
-          <MessageCircle className="w-5 h-5" />
-          <span className="font-semibold">Bình luận</span>
-        </button>
-      </div>
-
-      {/* Comments Section */}
-      {showComments && (
-        <div className="border-t bg-gray-50 p-4">
-          {/* Comment Input */}
-          <div className="flex items-center space-x-2 mb-4">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-pink-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
-              {currentUser.name?.[0]}
-            </div>
-            <input
-              type="text"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleComment()}
-              placeholder="Viết bình luận..."
-              className="flex-1 bg-white rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-            <button onClick={handleComment} disabled={!newComment.trim()} className="text-blue-500 disabled:opacity-50">
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Comments List */}
-          <div className="space-y-3">
-            {comments.map(comment => (
-              <div key={comment._id} className="flex space-x-2">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                  {comment.userId?.name?.[0]}
-                </div>
-                <div className="flex-1">
-                  <div className="bg-white rounded-2xl px-3 py-2">
-                    <p className="font-semibold text-sm">{comment.userId?.name}</p>
-                    <p className="text-sm">{comment.content}</p>
-                  </div>
-                  <div className="flex items-center space-x-3 mt-1 px-3 text-xs text-gray-500">
-                    <button className="hover:underline">Thích</button>
-                    <button className="hover:underline">Trả lời</button>
-                    <span>{formatTime(comment.createdAt)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+            </aside>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
