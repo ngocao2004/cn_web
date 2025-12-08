@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import Landing from "./pages/Landing";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -52,23 +53,20 @@ function App() {
   }, [user, API_URL]); // ✅ Dependency: user
 
   return (
-    <UserContext.Provider value={{user, setUser}}>
-      <SocketContext.Provider value={socket}>
-        <Navbar />
-        <Routes>
-          <Route path="/" element={<HomeUser />} />
-          <Route path="/home" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/messenger" element={<Messenger />} />
-          <Route path="/complete-profile" element={<CompleteProfile />} />
-          <Route path="/messenger/:conversationId" element={<Messenger />} />
-          <Route path="/ai-chat" element={<AIChatPage />} />
-        </Routes>
-      </SocketContext.Provider>
-    </UserContext.Provider>
+    <Router>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/feed" element={<Home />} />
+        <Route path="/home" element={<HomeUser />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/messenger" element={<Messenger />} />
+        <Route path="/complete-profile" element={<CompleteProfile />} />
+      </Routes>
+    </Router>
   );
 }
 

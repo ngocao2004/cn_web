@@ -1,14 +1,19 @@
-import { useEffect, useState, useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { SocketContext, UserContext } from "../App";
-import { Home, MessageCircle, Send, User, LogOut, Heart, Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Heart, Bell, Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
-  const { user, setUser } = useContext(UserContext);
-  const socket = useContext(SocketContext);
+  const location = useLocation();
+
+  const navItems = [
+    { label: "Find Love", path: "/feed" },
+    { label: "Match", path: "/chat" },
+    { label: "Messages", path: "/messenger" },
+    { label: "Study", path: "/home" },
+  ];
 
   const loadUser = () => {
     const storedUser = sessionStorage.getItem("user");
@@ -36,6 +41,12 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    setShowDropdown(false);
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+
   const handleLogout = () => {
     console.log("🚪 Đăng xuất...");
     
@@ -55,225 +66,195 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-gradient backdrop-blur-xl border-b border-white/10 shadow-2xl">
-      {/* Gradient line */}
-      <div className="h-1 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500"></div>
-      
-      <div className="max-w-7xl mx-auto px-6 py-4">
-        <div className="flex justify-between items-center">
-          {/* Logo */}
-          <Link to="/home" className="group flex items-center space-x-2">
-            <div className="relative">
-              <Heart className="w-10 h-10 text-pink-500 fill-current animate-pulse" />
-              <div className="absolute inset-0 bg-pink-500 blur-xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
-              HustLove
-            </span>
-          </Link>
+    <nav className="fixed top-0 z-50 w-full border-b border-rose-100/80 bg-white/90 backdrop-blur">
+      <div className="mx-auto grid w-full max-w-[1280px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 lg:px-8">
+        <Link to="/" className="flex min-w-max items-center gap-2 text-[22px] font-semibold text-slate-900">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-rose-100 text-rose-500">
+            <Heart className="h-4 w-4" />
+          </span>
+          <span className="tracking-tight">HUSTLove</span>
+        </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-2">
-            <Link
-              to="/home"
-              className="group px-4 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
-            >
-              <Home className="w-5 h-5" />
-              <span className="font-medium">Trang chủ</span>
-            </Link>
-
-            {user && (
-              <>
+        <div className="hidden items-center justify-center md:flex">
+          <nav className="flex items-center justify-center gap-10 text-sm font-semibold text-slate-800">
+            {navItems.map(({ label, path }) => {
+              const isActive = location.pathname.startsWith(path);
+              return (
                 <Link
-                  to="/chat"
-                  className="group px-4 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
+                  key={label}
+                  to={path}
+                  className={`relative transition-colors duration-150 hover:text-teal-500 ${
+                    isActive ? "text-teal-500" : ""
+                  }`}
                 >
-                  <MessageCircle className="w-5 h-5" />
-                  <span className="font-medium">Chat</span>
+                  {label}
+                  {isActive && (
+                    <span className="absolute -bottom-2 left-1/2 h-1 w-6 -translate-x-1/2 rounded-full bg-teal-400" />
+                  )}
                 </Link>
-
-                <Link
-                  to="/messenger"
-                  className="group px-4 py-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center gap-2"
-                >
-                  <Send className="w-5 h-5" />
-                  <span className="font-medium">Messenger</span>
-                </Link>
-              </>
-            )}
-
-            {/* Auth Buttons / User Menu */}
-            {!user ? (
-              <div className="flex items-center gap-2 ml-4">
-                <Link
-                  to="/login"
-                  className="px-6 py-2 rounded-xl text-white font-medium hover:bg-white/10 transition-all"
-                >
-                  Đăng nhập
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-6 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white font-medium hover:shadow-lg hover:shadow-pink-500/50 transition-all"
-                >
-                  Đăng ký
-                </Link>
-              </div>
-            ) : (
-              <div className="relative ml-4">
-                <button
-                  onClick={() => setShowDropdown(!showDropdown)}
-                  className="flex items-center space-x-3 px-4 py-2 rounded-xl hover:bg-white/10 transition-all group"
-                >
-                  <div className="relative">
-                    {user.avatar ? (
-                      <img 
-                        src={user.avatar} 
-                        alt={user.name} 
-                        className="w-10 h-10 rounded-xl object-cover border-2 border-purple-500"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-slate-900 rounded-full"></div>
-                  </div>
-                  <span className="text-white font-semibold">{user.name}</span>
-                  <svg 
-                    className={`w-4 h-4 text-white/60 transition-transform ${showDropdown ? 'rotate-180' : ''}`}
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {/* Dropdown Menu */}
-                {showDropdown && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setShowDropdown(false)}
-                    ></div>
-                    <div className="absolute right-0 mt-2 w-56 bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl py-2 z-50 overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 via-purple-500/10 to-blue-500/10"></div>
-                      
-                      <Link
-                        to="/profile"
-                        className="relative block px-4 py-3 text-white hover:bg-white/10 transition-all flex items-center gap-3"
-                        onClick={() => setShowDropdown(false)}
-                      >
-                        <User className="w-5 h-5 text-purple-400" />
-                        <span className="font-medium">Trang cá nhân</span>
-                      </Link>
-                      
-                      <div className="border-t border-white/10 my-1"></div>
-                      
-                      <button
-                        onClick={handleLogout}
-                        className="relative w-full text-left px-4 py-3 text-white hover:bg-red-500/20 transition-all flex items-center gap-3"
-                      >
-                        <LogOut className="w-5 h-5 text-red-400" />
-                        <span className="font-medium">Đăng xuất</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="md:hidden p-2 rounded-xl text-white hover:bg-white/10 transition-all"
-          >
-            {showMobileMenu ? (
-              <X className="w-6 h-6" />
-            ) : (
-              <Menu className="w-6 h-6" />
-            )}
-          </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Mobile Menu */}
-        {showMobileMenu && (
-          <div className="md:hidden mt-4 pb-4 space-y-2">
-            <Link
-              to="/home"
-              className="block px-4 py-3 rounded-xl text-white hover:bg-white/10 transition-all flex items-center gap-3"
-              onClick={() => setShowMobileMenu(false)}
-            >
-              <Home className="w-5 h-5" />
-              <span className="font-medium">Trang chủ</span>
-            </Link>
+        <div className="ml-auto hidden flex-shrink-0 items-center gap-4 justify-self-end md:flex">
+          {!user ? (
+            <div className="flex items-center gap-3 text-sm font-semibold">
+              <Link
+                to="/login"
+                className="rounded-full border border-rose-200 px-5 py-2 text-slate-700 transition hover:border-rose-300 hover:text-teal-500"
+              >
+                Đăng nhập
+              </Link>
+              <Link
+                to="/register"
+                className="rounded-full bg-rose-500 px-5 py-2 text-white shadow-sm shadow-rose-200 transition hover:shadow-md"
+              >
+                Đăng ký
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-200 bg-white/80 text-rose-400 transition hover:border-rose-300 hover:text-rose-500"
+                aria-label="Thông báo"
+              >
+                <Bell className="h-4 w-4" />
+                {Array.isArray(user.notifications) && user.notifications.some((n) => !n?.read) && (
+                  <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-teal-500" />
+                )}
+              </button>
 
-            {user && (
-              <>
-                <Link
-                  to="/chat"
-                  className="block px-4 py-3 rounded-xl text-white hover:bg-white/10 transition-all flex items-center gap-3"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  <span className="font-medium">Chat</span>
-                </Link>
-
-                <Link
-                  to="/messenger"
-                  className="block px-4 py-3 rounded-xl text-white hover:bg-white/10 transition-all flex items-center gap-3"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  <Send className="w-5 h-5" />
-                  <span className="font-medium">Messenger</span>
-                </Link>
-
-                <div className="border-t border-white/10 my-2"></div>
-
-                <Link
-                  to="/profile"
-                  className="block px-4 py-3 rounded-xl text-white hover:bg-white/10 transition-all flex items-center gap-3"
-                  onClick={() => setShowMobileMenu(false)}
-                >
-                  <User className="w-5 h-5 text-purple-400" />
-                  <span className="font-medium">Trang cá nhân</span>
-                </Link>
-
+              <div className="relative">
                 <button
-                  onClick={() => {
-                    handleLogout();
-                    setShowMobileMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-3 rounded-xl text-white hover:bg-red-500/20 transition-all flex items-center gap-3"
+                  onClick={() => setShowDropdown((prev) => !prev)}
+                  className="flex items-center gap-3 rounded-full border border-transparent bg-white/80 px-3 py-1.5 shadow-sm shadow-rose-100/70 transition hover:border-rose-200"
                 >
-                  <LogOut className="w-5 h-5 text-red-400" />
-                  <span className="font-medium">Đăng xuất</span>
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="h-10 w-10 rounded-full border-2 border-rose-200 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-200 text-rose-600">
+                      {user.name?.charAt(0)?.toUpperCase() || "H"}
+                    </div>
+                  )}
+                  <span className="text-sm font-semibold text-slate-800">{user.name}</span>
                 </button>
-              </>
-            )}
 
-            {!user && (
-              <div className="space-y-2 pt-2">
+                {showDropdown && (
+                  <div className="absolute right-0 mt-3 w-56 rounded-2xl border border-rose-100 bg-white/95 p-2 text-sm text-slate-600 shadow-xl shadow-rose-100/70">
+                    <Link
+                      to="/profile"
+                      className="block rounded-xl px-4 py-2 transition hover:bg-rose-50"
+                    >
+                      Hồ sơ cá nhân
+                    </Link>
+                    <Link
+                      to="/settings"
+                      className="block rounded-xl px-4 py-2 transition hover:bg-rose-50"
+                    >
+                      Cài đặt
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="mt-1 w-full rounded-xl px-4 py-2 text-left text-rose-500 transition hover:bg-rose-100"
+                    >
+                      Đăng xuất
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="inline-flex items-center justify-center rounded-full border border-rose-200 bg-white/90 p-2 text-rose-500 transition hover:border-rose-300 hover:text-rose-600 md:hidden"
+          onClick={() => setMobileOpen((prev) => !prev)}
+          aria-label="Mở menu"
+        >
+          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
+
+      {mobileOpen && (
+        <div className="md:hidden">
+          <div className="space-y-4 border-t border-rose-100/70 bg-white/95 px-4 py-6 text-sm font-semibold text-slate-700 shadow-lg">
+            <div className="flex flex-col gap-2">
+              {navItems.map(({ label, path }) => {
+                const isActive = location.pathname.startsWith(path);
+                return (
+                  <Link
+                    key={label}
+                    to={path}
+                    className={`rounded-xl px-3 py-2 transition hover:bg-rose-50 ${
+                      isActive ? "text-teal-500" : ""
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {user ? (
+              <div className="space-y-3 rounded-2xl bg-rose-50/70 p-4">
+                <div className="flex items-center gap-3">
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="h-10 w-10 rounded-full border border-rose-200 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-200 text-rose-600">
+                      {user.name?.charAt(0)?.toUpperCase() || "H"}
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">{user.name}</p>
+                    <Link to="/profile" className="text-xs text-teal-500">Xem hồ sơ</Link>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Link
+                    to="/settings"
+                    className="flex-1 rounded-full border border-rose-200 px-4 py-2 text-center text-sm transition hover:border-rose-300 hover:text-teal-500"
+                  >
+                    Cài đặt
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="flex-1 rounded-full bg-rose-500 px-4 py-2 text-sm text-white shadow-sm shadow-rose-200"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 text-sm font-semibold">
                 <Link
                   to="/login"
-                  className="block px-4 py-3 rounded-xl text-center text-white hover:bg-white/10 transition-all font-medium"
-                  onClick={() => setShowMobileMenu(false)}
+                  className="rounded-full border border-rose-200 px-4 py-2 text-center text-slate-700 transition hover:border-rose-300 hover:text-teal-500"
                 >
                   Đăng nhập
                 </Link>
                 <Link
                   to="/register"
-                  className="block px-4 py-3 rounded-xl text-center bg-gradient-to-r from-pink-500 to-purple-500 text-white font-medium"
-                  onClick={() => setShowMobileMenu(false)}
+                  className="rounded-full bg-rose-500 px-4 py-2 text-center text-white shadow-sm shadow-rose-200"
                 >
                   Đăng ký
                 </Link>
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </nav>
   );
 }

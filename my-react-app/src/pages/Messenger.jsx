@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useContext } from 'react';
 import { SocketContext } from '../App.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { MessageCircle, Send, Clock, Search, Phone, Video, MoreVertical, Sparkles } from 'lucide-react';
+import { Heart, Smile, Image as ImageIcon, Send, HeartHandshake } from 'lucide-react';
 
 export default function Messenger() {
   const navigate = useNavigate();
@@ -217,228 +217,186 @@ export default function Messenger() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 pt-20">
-      {/* Animated background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
-        <div className="absolute top-40 right-10 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute -bottom-8 left-20 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{animationDelay: '4s'}}></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#fff1f5] via-[#fde5ef] to-[#ede9ff] pt-20">
+      <div className="mx-auto flex h-[calc(100vh-5rem)] w-full max-w-6xl flex-col rounded-[40px] border border-white/50 bg-white/30 p-6 shadow-[0_50px_120px_-60px_rgba(233,114,181,0.55)] backdrop-blur-xl">
+        <header className="flex items-center gap-3 rounded-[28px] border border-white/60 bg-white/50 px-6 py-4 text-sm font-semibold text-rose-500">
+          <Heart className="h-5 w-5 text-rose-400" />
+          <span>Kết nối đang chờ bạn • HUSTLove Messenger</span>
+        </header>
 
-      <div className="relative z-10 h-[calc(100vh-5rem)] max-w-7xl mx-auto p-6">
-        <div className="h-full grid grid-cols-12 gap-6">
-          {/* Sidebar - Conversations */}
-          <div className="col-span-4 bg-slate-800/90 backdrop-blur-xl border border-white/20 rounded-3xl overflow-hidden flex flex-col">
-            {/* Sidebar Header */}
-            <div className="p-6 border-b border-white/10">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                  <MessageCircle className="w-8 h-8 text-pink-400" />
-                  Tin nhắn
-                </h2>
-                <Sparkles className="w-6 h-6 text-yellow-400 animate-pulse" />
-              </div>
-              
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/50" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm kiếm..."
-                  className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+        <div className="mt-6 grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[0.32fr_0.68fr]">
+          {/* Sidebar - Match list */}
+          <aside className="flex h-full flex-col rounded-[32px] border border-white/60 bg-white/70 p-5 shadow-[0_30px_90px_-70px_rgba(233,114,181,0.6)]">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400">Match list</p>
+                <h2 className="mt-2 text-lg font-semibold text-slate-800">Danh sách các cặp đôi</h2>
               </div>
             </div>
 
-            {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto">
-              {filteredConversations.length === 0 ? (
-                <div className="text-center p-8 text-white/60">
-                  <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="mb-4">Chưa có cuộc trò chuyện nào</p>
+            <div className="mt-5 flex-1 space-y-3 overflow-y-auto pr-1">
+              {conversations.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-dashed border-rose-200/70 bg-white/60 p-6 text-center text-rose-400">
+                  <p className="text-sm">Chưa có cuộc trò chuyện nào</p>
                   <button
                     onClick={() => navigate('/chat')}
-                    className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-xl hover:shadow-lg hover:shadow-pink-500/50 transition-all"
+                    className="mt-4 rounded-full bg-gradient-to-r from-[#f7b0d2] to-[#fdd2b7] px-5 py-2 text-xs font-semibold text-white shadow-sm shadow-rose-200 transition hover:shadow-lg"
                   >
                     Tìm người mới
                   </button>
                 </div>
               ) : (
-                filteredConversations.map(conv => (
-                  <div
-                    key={conv._id}
-                    onClick={() => handleSelectConversation(conv)}
-                    className={`p-4 border-b border-white/5 cursor-pointer transition-all ${
-                      selectedConversation?._id === conv._id 
-                        ? 'bg-purple-500/20 border-l-4 border-purple-500' 
-                        : 'hover:bg-white/5'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="relative flex-shrink-0">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center text-white text-xl font-bold">
+                conversations.map((conv) => {
+                  const isActive = selectedConversation?._id === conv._id;
+                  return (
+                    <button
+                      type="button"
+                      key={conv._id}
+                      onClick={() => handleSelectConversation(conv)}
+                      className={`w-full rounded-[26px] border px-4 py-3 text-left transition-all ${
+                        isActive
+                          ? 'border-rose-300 bg-gradient-to-r from-[#ffe4f1] to-[#fde7ef] shadow-[0_20px_40px_-30px_rgba(233,114,181,0.9)]'
+                          : 'border-white/60 bg-white/60 hover:border-rose-200 hover:bg-white/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#f9b9d0] to-[#c7b6ff] text-base font-semibold text-white shadow-sm ${isActive ? 'ring-2 ring-rose-300' : ''}`}>
                           {conv.partnerName?.[0]?.toUpperCase()}
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-slate-800 rounded-full"></div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-white truncate">{conv.partnerName}</h3>
-                        <p className="text-sm text-white/60 truncate">
-                          {conv.lastMessage?.text || 'Bắt đầu trò chuyện...'}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Clock className="w-3 h-3 text-white/40" />
-                          <p className="text-xs text-white/40">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-slate-800">{conv.partnerName}</p>
+                          <p className="truncate text-xs text-rose-400/80">
+                            {conv.lastMessage?.text || 'Bắt đầu trò chuyện...'}
+                          </p>
+                          <p className="text-[11px] text-rose-300">
                             {conv.lastMessage?.timestamp && formatTime(conv.lastMessage.timestamp)}
                           </p>
                         </div>
+                        {conv.unreadCount > 0 && (
+                          <span className="min-w-[28px] rounded-full bg-rose-400 px-2 py-1 text-center text-[11px] font-semibold text-white shadow-sm">
+                            {conv.unreadCount}
+                          </span>
+                        )}
                       </div>
-                      {conv.unreadCount > 0 && (
-                        <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full flex-shrink-0 font-semibold">
-                          {conv.unreadCount}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))
+                    </button>
+                  );
+                })
               )}
             </div>
-          </div>
+          </aside>
 
-          {/* Chat Area */}
-          <div className="col-span-8 bg-slate-800/90 backdrop-blur-xl border border-white/20 rounded-3xl overflow-hidden flex flex-col">
+          {/* Chat window */}
+          <section className="flex h-full flex-col rounded-[32px] border border-white/60 bg-white/75 shadow-[0_40px_120px_-70px_rgba(233,114,181,0.65)]">
             {selectedConversation ? (
               <>
-                {/* Chat Header */}
-                <div className="bg-gradient-to-r from-pink-500 via-purple-600 to-blue-600 p-6 flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-white text-xl backdrop-blur-sm">
-                        {selectedConversation.partnerName?.[0]?.toUpperCase()}
-                      </div>
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
+                <header className="flex items-center justify-between rounded-t-[32px] border-b border-white/60 bg-white/70 px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#f7b0d2] to-[#fdd2b7] text-lg font-semibold text-white shadow-sm">
+                      {selectedConversation.partnerName?.[0]?.toUpperCase()}
+                      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-rose-400 shadow">♥</span>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-white text-lg">{selectedConversation.partnerName}</h3>
-                      {isTyping ? (
-                        <p className="text-xs text-pink-200 flex items-center gap-1">
-                          <span className="animate-pulse">đang nhập</span>
-                          <span className="animate-bounce">.</span>
-                          <span className="animate-bounce" style={{animationDelay: '0.2s'}}>.</span>
-                          <span className="animate-bounce" style={{animationDelay: '0.4s'}}>.</span>
-                        </p>
-                      ) : (
-                        <p className="text-xs text-pink-200">Đang hoạt động</p>
-                      )}
+                      <p className="text-base font-semibold text-slate-800">{selectedConversation.partnerName}</p>
+                      <p className="text-xs font-medium uppercase tracking-[0.28em] text-rose-300">
+                        {selectedConversation.partnerClass || 'HUST K65'}
+                      </p>
+                      {isTyping && <p className="text-[11px] text-rose-400">đang nhập...</p>}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all backdrop-blur-sm">
-                      <Phone className="w-5 h-5 text-white" />
-                    </button>
-                    <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all backdrop-blur-sm">
-                      <Video className="w-5 h-5 text-white" />
-                    </button>
-                    <button className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all backdrop-blur-sm">
-                      <MoreVertical className="w-5 h-5 text-white" />
-                    </button>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-rose-400">
+                    <HeartHandshake className="h-4 w-4" />
+                    <span>Kết nối an toàn</span>
                   </div>
-                </div>
+                </header>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-br from-slate-900/50 to-purple-900/50">
+                <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.7),_rgba(255,214,211,0.25)_58%,_transparent)] px-6 py-6">
                   {messages.length === 0 ? (
-                    <div className="text-center text-white/40 mt-32">
-                      <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg">Chưa có tin nhắn nào</p>
-                      <p className="text-sm mt-2">Hãy bắt đầu cuộc trò chuyện! 💬</p>
+                    <div className="flex h-full flex-col items-center justify-center text-rose-300">
+                      <Heart className="mb-4 h-12 w-12" />
+                      <p className="text-sm font-medium">Chưa có tin nhắn nào</p>
+                      <p className="text-xs mt-1">Hãy gửi lời chào để mở đầu câu chuyện ✨</p>
                     </div>
                   ) : (
-                    messages.map((msg, index) => (
-                      <div
-                        key={msg._id || index}
-                        className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'} animate-fadeIn`}
-                      >
-                        <div className="max-w-md group">
-                          <div className="relative">
-                            {msg.senderId !== user.id && (
-                              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-3xl blur opacity-0 group-hover:opacity-20 transition-opacity"></div>
-                            )}
-                            {msg.senderId === user.id && (
-                              <div className="absolute -inset-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-3xl blur opacity-30 group-hover:opacity-50 transition-opacity"></div>
-                            )}
-                            
+                    <div className="space-y-4">
+                      {messages.map((msg, index) => {
+                        const isSelf = msg.senderId === user.id;
+                        return (
+                          <div
+                            key={msg._id || index}
+                            className={`flex ${isSelf ? 'justify-end' : 'justify-start'} animate-fadeIn`}
+                          >
                             <div
-                              className={`relative px-6 py-4 rounded-3xl shadow-xl backdrop-blur-sm ${
-                                msg.senderId === user.id
-                                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-br-md'
-                                  : 'bg-slate-800/90 border border-white/20 text-white rounded-bl-md'
+                              className={`max-w-[78%] rounded-3xl px-4 py-3 text-sm shadow ${
+                                isSelf
+                                  ? 'bg-gradient-to-r from-[#f7b0d2] via-[#f59fb6] to-[#fdd2b7] text-white'
+                                  : 'bg-white/85 text-slate-700'
                               }`}
                             >
-                              <p className="break-words leading-relaxed">{msg.content}</p>
-                              {msg.timestamp && (
-                                <p className={`text-xs mt-2 ${msg.senderId === user.id ? 'text-pink-200' : 'text-white/50'}`}>
-                                  {formatTime(msg.timestamp)}
-                                </p>
-                              )}
+                              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                              <p className={`mt-2 text-[11px] font-medium ${isSelf ? 'text-white/70' : 'text-rose-300'}`}>
+                                {msg.timestamp && formatTime(msg.timestamp)}
+                              </p>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    ))
+                        );
+                      })}
+                    </div>
                   )}
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Input */}
-                <form onSubmit={handleSendMessage} className="p-6 bg-slate-900/50 backdrop-blur-xl border-t border-white/10">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 relative group">
-                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition-opacity"></div>
-                      <input
-                        type="text"
-                        value={input}
-                        onChange={(e) => {
-                          setInput(e.target.value);
-                          handleTyping();
-                        }}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSendMessage(e);
-                          }
-                        }}
-                        placeholder="Nhập tin nhắn..."
-                        className="relative w-full px-6 py-4 bg-slate-800/90 border-2 border-white/20 rounded-2xl text-white placeholder-white/50 focus:ring-2 focus:ring-purple-500 focus:border-transparent focus:outline-none transition-all"
-                        autoFocus
-                      />
-                    </div>
-                    
+                <form onSubmit={handleSendMessage} className="rounded-b-[32px] border-t border-white/60 bg-white/80 px-5 py-4">
+                  <div className="flex items-center gap-3 rounded-full border border-rose-200 bg-white/70 px-4 py-2 shadow-sm shadow-rose-100">
+                    <button
+                      type="button"
+                      className="rounded-full p-2 text-rose-300 transition hover:bg-rose-50 hover:text-rose-400"
+                      aria-label="Gửi reaction"
+                    >
+                      <Smile className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full p-2 text-rose-300 transition hover:bg-rose-50 hover:text-rose-400"
+                      aria-label="Gửi ảnh"
+                    >
+                      <ImageIcon className="h-5 w-5" />
+                    </button>
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => {
+                        setInput(e.target.value);
+                        handleTyping();
+                      }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      placeholder="Gửi lời yêu thương..."
+                      className="flex-1 bg-transparent text-sm text-slate-700 placeholder-rose-300 outline-none"
+                      autoFocus
+                    />
                     <button
                       type="submit"
                       disabled={!input.trim()}
-                      className="group relative p-4 overflow-hidden rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#f7b0d2] via-[#f59fb6] to-[#fdd2b7] px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-rose-200 transition hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl transition-all group-hover:scale-110"></div>
-                      <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-500 rounded-2xl blur opacity-50 group-hover:opacity-75 transition-opacity"></div>
-                      <Send className="relative w-6 h-6 text-white transform group-hover:scale-110 transition-transform" />
+                      <Send className="h-4 w-4" />
+                      Gửi
                     </button>
                   </div>
                 </form>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-white/60">
-                <div className="text-center">
-                  <MessageCircle className="w-24 h-24 mx-auto mb-6 opacity-50" />
-                  <p className="text-2xl font-semibold mb-2">Chọn cuộc trò chuyện</p>
-                  <p className="text-white/40">Chọn một cuộc trò chuyện để bắt đầu nhắn tin</p>
-                </div>
+              <div className="flex flex-1 flex-col items-center justify-center text-rose-300">
+                <Heart className="mb-4 h-14 w-14" />
+                <p className="text-base font-semibold">Chọn một cuộc trò chuyện để bắt đầu</p>
+                <p className="text-xs mt-2">Những rung động mới đang đợi bạn ở ngay bên trái</p>
               </div>
             )}
-          </div>
+          </section>
         </div>
       </div>
 
