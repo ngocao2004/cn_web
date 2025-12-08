@@ -89,6 +89,7 @@ export default function Home() {
   const finderDistance = storedUser?.preferredDistance || 'Trong 3km';
   const finderAgeRange = storedUser?.preferredAgeRange || '20 - 25 tuổi';
 
+  // ✅ Tạo hiệu ứng số liệu động: dựa trên số thật nhưng thêm random theo thời gian
   useEffect(() => {
     setPhotoIndex(0);
   }, [activeIndex]);
@@ -260,6 +261,9 @@ export default function Home() {
                   )}
                 </div>
               </div>
+            </div>
+          ))}
+        </div>
 
               <div className="flex flex-col items-center gap-6">
                 <div className="flex items-center justify-center gap-8">

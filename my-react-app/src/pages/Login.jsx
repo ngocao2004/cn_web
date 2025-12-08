@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useContext } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
@@ -8,6 +9,7 @@ export default function Login() {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_URL;
+  const { setUser } = useContext(UserContext);
 
   const handleSubmit = async (e) => {
     console.log("🔥 handleSubmit BẮT ĐẦU");
@@ -59,6 +61,8 @@ export default function Login() {
       console.log("💾 Data sẽ lưu vào sessionStorage:", userForChat);
 
       sessionStorage.setItem("user", JSON.stringify(userForChat));
+
+      setUser(userForChat);
 
       // ✅ Kiểm tra đã lưu thành công chưa
       const saved = sessionStorage.getItem("user");

@@ -1,22 +1,22 @@
-// src/pages/Messenger.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
+import { SocketContext } from '../App.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
-import io from 'socket.io-client';
 import axios from 'axios';
 import { Heart, Smile, Image as ImageIcon, Send, HeartHandshake } from 'lucide-react';
 
 export default function Messenger() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [socket, setSocket] = useState(null);
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef(null);
   const API_URL = import.meta.env.VITE_API_URL;
+  const socket = useContext(SocketContext);
 
   // ✅ Load user
   useEffect(() => {
@@ -33,29 +33,17 @@ export default function Messenger() {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
 
-
   // ✅ Socket connection
   useEffect(() => {
-    if (!user) return;
+    if (!socket || !user) return;
 
-    console.log('🔌 Connecting to socket...');
-    const newSocket = io(`${API_URL}`, {
-      transports: ['websocket'],
-      reconnection: true
-    });
-    
-    newSocket.on('connect', () => {
-      console.log('✅ Socket connected:', newSocket.id);
-      newSocket.emit('join_conversations', user.id);
-    });
+    socket.emit("join_conversation", user.id);
 
-    newSocket.on('new_message', ({ conversationId, message }) => {
+    socket.on('new_message', ({ conversationId, message }) => {
       console.log('📩 New message received:', { conversationId, message });
 
-      // ✅ Chỉ xử lý nếu đang xem conversation hiện tại
       if (selectedConversationRef.current?._id === conversationId) {
         setMessages(prev => {
-          // 1️⃣ Nếu có tempId trùng, thay thế tin tạm bằng tin thật
           const tempIndex = prev.findIndex(m => m._id === message.tempId);
           if (tempIndex !== -1) {
             const updated = [...prev];
@@ -69,10 +57,8 @@ export default function Messenger() {
             return updated;
           }
 
-          // 2️⃣ Nếu đã tồn tại tin thật, tránh thêm trùng
           if (prev.some(m => m._id === message._id)) return prev;
 
-          // 3️⃣ Thêm mới nếu chưa có
           return [...prev, {
             _id: message._id,
             senderId: message.senderId,
@@ -83,7 +69,6 @@ export default function Messenger() {
         });
       }
 
-      // Cập nhật conversations (lastMessage & unreadCount)
       setConversations(prev => prev.map(conv => {
         if (conv._id === conversationId) {
           return {
@@ -98,34 +83,28 @@ export default function Messenger() {
       }).sort((a, b) => new Date(b.lastMessage?.timestamp) - new Date(a.lastMessage?.timestamp)));
     });
 
-
-    newSocket.on('partner_typing', ({ conversationId, isTyping: typing }) => {
+    socket.on('partner_typing', ({ conversationId, isTyping: typing }) => {
       if (selectedConversationRef.current?._id === conversationId) {
         setIsTyping(typing);
       }
     });
 
-    setSocket(newSocket);
-
     return () => {
-      console.log('🔌 Disconnecting socket');
-      newSocket.disconnect();
+      socket.off('new_message');
+      socket.off('partner_typing');
     };
-  }, [user]); 
+  }, [user, socket]); 
 
   // ✅ Fetch conversations
   const fetchConversations = async () => {
     if (!user) return;
     
     try {
-      const res = await axios.get(
-        `${API_URL}/api/conversations?userId=${user.id}`
-      );
+      const res = await axios.get(`${API_URL}/api/conversations?userId=${user.id}`);
       
       if (res.data.success) {
         setConversations(res.data.conversations);
         
-        // ✅ Auto select conversation from navigation state
         const targetConvId = location.state?.conversationId;
         if (targetConvId && !selectedConversation) {
           const conv = res.data.conversations.find(c => c._id === targetConvId);
@@ -145,7 +124,6 @@ export default function Messenger() {
     }
   }, [user]);
 
-  // ✅ Auto-scroll messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -156,21 +134,17 @@ export default function Messenger() {
     setSelectedConversation(conv);
     
     try {
-      const res = await axios.get(
-        `${API_URL}/api/messages/${conv._id}`
-      );
+      const res = await axios.get(`${API_URL}/api/messages/${conv._id}`);
       
       if (res.data.success) {
         console.log('📬 Loaded messages:', res.data.messages.length);
         setMessages(res.data.messages);
       }
 
-      // Mark as read
       if (socket) {
         socket.emit('mark_as_read', { conversationId: conv._id });
       }
 
-      // Update local state
       setConversations(prev => prev.map(c => 
         c._id === conv._id ? { ...c, unreadCount: 0 } : c
       ));
@@ -184,19 +158,12 @@ export default function Messenger() {
   const handleSendMessage = (e) => {
     e.preventDefault();
     
-    if (!socket || !input.trim() || !selectedConversation) {
-      console.warn('Cannot send message:', { socket: !!socket, input, conv: !!selectedConversation });
-      return;
-    }
-
-    console.log('📤 Sending message:', input);
-
+    if (!socket || !input.trim() || !selectedConversation) return;
 
     const tempId = Date.now().toString();
 
-    // Add to local state immediately (optimistic update)
     const tempMessage = {
-      _id: Date.now().toString(),
+      _id: tempId,
       senderId: user.id,
       content: input,
       timestamp: new Date().toISOString(),
@@ -206,7 +173,6 @@ export default function Messenger() {
     
     setMessages(prev => [...prev, tempMessage]);
 
-    // Send via socket
     socket.emit('send_message', {
       conversationId: selectedConversation._id,
       message: input,
@@ -233,17 +199,20 @@ export default function Messenger() {
     }
   };
 
-  // Format time
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now - date;
     
     if (diff < 60000) return 'Vừa xong';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} phút trước`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} giờ trước`;
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} phút`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} giờ`;
     return date.toLocaleDateString('vi-VN');
   };
+
+  const filteredConversations = conversations.filter(conv =>
+    conv.partnerName?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (!user) return null;
 
@@ -436,7 +405,7 @@ export default function Messenger() {
         @keyframes fadeIn {
           from {
             opacity: 0;
-            transform: translateY(10px);
+            transform: translateY(15px);
           }
           to {
             opacity: 1;
@@ -444,7 +413,23 @@ export default function Messenger() {
           }
         }
         .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
+          animation: fadeIn 0.4s ease-out;
+        }
+        
+        /* Custom scrollbar */
+        .overflow-y-auto::-webkit-scrollbar {
+          width: 8px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-thumb {
+          background: rgba(168, 85, 247, 0.5);
+          border-radius: 10px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+          background: rgba(168, 85, 247, 0.7);
         }
       `}</style>
     </div>

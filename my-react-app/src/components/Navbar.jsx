@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Heart, Bell, Menu, X } from "lucide-react";
 
 export default function Navbar() {
-  const [user, setUser] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
@@ -49,9 +48,20 @@ export default function Navbar() {
 
 
   const handleLogout = () => {
+    console.log("🚪 Đăng xuất...");
+    
+    if (socket) {
+      console.log("🔌 Disconnecting socket...");
+      socket.disconnect();
+    }
+    
     sessionStorage.removeItem("user");
+    console.log("🗑️ Đã xóa sessionStorage");
+    
     setUser(null);
-    window.dispatchEvent(new Event("userChanged"));
+    console.log("✅ Đã clear user context");
+    
+    setShowDropdown(false);
     navigate("/login");
   };
 
