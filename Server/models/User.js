@@ -70,7 +70,7 @@ const userSchema = new mongoose.Schema({
   },
   connectionGoal: {
     type: String,
-    enum: ['study', 'friendship', 'relationship', ''],
+    enum: ['friendship', 'relationship', ''],
     default: ''
   },
   location: {

@@ -87,7 +87,6 @@ export default function Home() {
     }
     return activeProfile.image ? [activeProfile.image] : [];
   }, [activeProfile]);
-  const finderName = storedUser?.name || 'Trần Văn Đức Anh';
   const finderDistance = storedUser?.preferredDistance || 'Trong 3km';
   const finderAgeRange = storedUser?.preferredAgeRange || '20 - 25 tuổi';
 

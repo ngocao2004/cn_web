@@ -1,13 +1,11 @@
-import { useState } from 'react';
-import { useEffect, useContext } from 'react';
-import { SocketContext } from '../App.jsx';
+import { useState, useEffect, useContext, useCallback } from 'react';
+import { SocketContext } from '../contexts';
 import { Users, Zap, Heart, MessageCircle, MapPin, Sparkles, TrendingUp, Clock } from "lucide-react";
 
 export default function Feed() {
   const [activeFeed, setActiveFeed] = useState('OnlineUsers');
   const newSocket = useContext(SocketContext);
   const API_URL = import.meta.env.VITE_API_URL;
-  const [socket, setSocket] = useState(null);
 
   const [stats, setStats] = useState({
     OnlineUsers: 0,
@@ -25,18 +23,17 @@ export default function Feed() {
 
   // ✅ Socket connection và listen online users count
 useEffect(() => {
-
   if (!newSocket) return;
-  
-  // Listen online users count
-  newSocket.on("online_users_count", (count) => {
+
+  const handleOnlineUsersCount = (count) => {
     console.log("👥 Online users:", count);
     setStats(prev => ({ ...prev, OnlineUsers: count }));
-  });
+  };
 
-  setSocket(newSocket);
+  newSocket.on("online_users_count", handleOnlineUsersCount);
+
   return () => {
-    newSocket.off("online_users_count");
+    newSocket.off("online_users_count", handleOnlineUsersCount);
   };
 }, [newSocket]);
 
@@ -44,9 +41,9 @@ useEffect(() => {
 useEffect(() => {
   fetchStats();
   fetchFeedData(activeFeed);
-}, [activeFeed]);
+}, [activeFeed, fetchFeedData, fetchStats]);
 
-const fetchStats = async () => {
+const fetchStats = useCallback(async () => {
   try {
     const response = await fetch(`${API_URL}/api/stats`);
     const data = await response.json();
@@ -59,9 +56,9 @@ const fetchStats = async () => {
   } catch (error) {
     console.error("❌ Error fetching stats:", error);
   }
-};
+}, [API_URL]);
 
-const fetchFeedData = async (feedType) => {
+const fetchFeedData = useCallback(async (feedType) => {
   try {
     let endpoint = '';
     switch(feedType) {
@@ -85,7 +82,7 @@ const fetchFeedData = async (feedType) => {
   } catch (error) {
     console.error(`❌ Error fetching ${feedType}:`, error);
   }
-};
+}, [API_URL]);
 
   const statItems = [
     { label: 'Online Users', value: stats.OnlineUsers.toLocaleString(), icon: Users, gradient: 'from-pink-500 to-rose-500', feedKey: 'OnlineUsers' },

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Heart, Bell, Menu, X } from "lucide-react";
-import { UserContext } from "../App";
+import { UserContext } from "../contexts";
 
 export default function Navbar({ user: controlledUser, socket }) {
   const [showDropdown, setShowDropdown] = useState(false);

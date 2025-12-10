@@ -13,12 +13,13 @@ import {
   Heart,
   Image as ImageIcon,
   MapPin,
+  Home,
   Sparkles,
   Target,
   Users,
 } from 'lucide-react';
 
-const pastelGradient = 'bg-gradient-to-br from-[#ffe8ef] via-[#ffe5d9] to-[#f0f4ff]';
+const pastelGradient = 'bg-[#fff5f8]';
 
 const defaultForm = {
   name: '',
@@ -27,12 +28,12 @@ const defaultForm = {
   career: '',
   classYear: '',
   location: '',
+  hometown: '',
   zodiac: '',
   lookingFor: 'Tất cả',
   ageRange: { min: 18, max: 30 },
   bio: '',
   hobbies: [],
-  studySubjects: [],
   photoGallery: [],
 };
 
@@ -83,7 +84,7 @@ export default function Profile() {
       {
         id: 'connections',
         label: 'Sở thích & mục tiêu',
-        description: 'Sở thích, đối tượng mong muốn và các môn học muốn học cùng.',
+        description: 'Sở thích và đối tượng mong muốn.',
         icon: Heart,
       },
       {
@@ -106,7 +107,12 @@ export default function Profile() {
       {
         id: 'basic',
         label: 'Thông tin cơ bản',
-        completed: Boolean(formData.name && formData.gender && formData.bio.trim()),
+        completed: Boolean(
+          formData.name &&
+          formData.gender &&
+          formData.hometown.trim() &&
+          formData.bio.trim(),
+        ),
       },
       {
         id: 'connections',
@@ -133,9 +139,24 @@ export default function Profile() {
       : '';
     return current || fallback || 'nơi chưa rõ';
   }, [formData.location, profile]);
+  const displayHometown = useMemo(() => {
+    const sanitize = (value) =>
+      typeof value === 'string' && value !== 'Not updated' && value.trim().length > 0
+        ? value.trim()
+        : '';
+    const current = sanitize(formData.hometown);
+    const fallback = sanitize(profile?.hometown);
+    return current || fallback || 'quê quán chưa rõ';
+  }, [formData.hometown, profile]);
   const stepCompletion = useMemo(
     () => ({
-      'basic-info': Boolean(formData.name && formData.gender && formData.bio.trim()),
+      'basic-info': Boolean(
+        formData.name &&
+        formData.gender &&
+        formData.hometown.trim() &&
+        formData.bio.trim(),
+      ),
+      
       connections:
         Array.isArray(formData.hobbies) && formData.hobbies.length > 0 &&
         typeof formData.lookingFor === 'string' && formData.lookingFor.trim().length > 0,
@@ -166,9 +187,6 @@ export default function Profile() {
           : typeof user?.hobbies === 'string'
           ? user.hobbies.split(',').map((item) => item.trim()).filter(Boolean)
           : [];
-        const studySubjects = Array.isArray(user?.studySubjects)
-          ? user.studySubjects
-          : [];
         const gallery = Array.isArray(user?.photoGallery) ? user.photoGallery : [];
 
         setFormData({
@@ -177,13 +195,13 @@ export default function Profile() {
           gender: user?.gender || '',
           career: user?.career && user.career !== 'Not updated' ? user.career : '',
           classYear: user?.classYear && user.classYear !== 'Not updated' ? user.classYear : '',
-          location: user?.location || '',
+          location: user?.location && user.location !== 'Not updated' ? user.location : '',
+          hometown: user?.hometown && user.hometown !== 'Not updated' ? user.hometown : '',
           zodiac: user?.zodiac || '',
           lookingFor: user?.lookingFor || user?.preferences?.lookingFor || 'Tất cả',
           ageRange: user?.ageRange || user?.preferences?.ageRange || { min: 18, max: 30 },
           bio: user?.bio || '',
           hobbies,
-          studySubjects,
           photoGallery: gallery.length > 0 ? gallery : user?.avatar ? [user.avatar] : [],
         });
         setPhotoIndex(0);
@@ -347,12 +365,12 @@ export default function Profile() {
         career: formData.career.trim(),
         classYear: formData.classYear.trim(),
         location: formData.location.trim(),
+        hometown: formData.hometown.trim(),
         zodiac: formData.zodiac.trim(),
         lookingFor: formData.lookingFor,
         ageRange: formData.ageRange,
         bio: formData.bio.trim(),
         hobbies: formData.hobbies,
-        studySubjects: formData.studySubjects,
         photoGallery: formData.photoGallery,
         avatar: formData.photoGallery[0] || profile?.avatar || '',
       };
@@ -376,6 +394,8 @@ export default function Profile() {
           id: nextUser.id || nextUser._id,
           _id: nextUser._id || nextUser.id,
           avatar: nextUser.avatar || payload.avatar,
+          hometown: nextUser.hometown || payload.hometown || currentUser.hometown || '',
+          location: nextUser.location || payload.location || currentUser.location || '',
         }),
       );
       window.dispatchEvent(new Event('userChanged'));
@@ -494,6 +514,22 @@ export default function Profile() {
                     </option>
                   ))}
                 </select>
+              </label>
+              <label className="space-y-2 text-sm font-semibold text-slate-600">
+                <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-rose-400">
+                  <Home className="h-3.5 w-3.5" /> Quê quán
+                </span>
+                <div className="relative">
+                  <Home className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-rose-300" />
+                  <input
+                    type="text"
+                    disabled={!isEditing}
+                    value={formData.hometown}
+                    onChange={(event) => handleFieldChange('hometown', event.target.value)}
+                    className="w-full rounded-3xl border border-rose-100 bg-white px-11 py-3 text-sm text-slate-700 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-4 focus:ring-rose-100 disabled:cursor-not-allowed"
+                    placeholder="Ví dụ: Hải Phòng, Nghệ An..."
+                  />
+                </div>
               </label>
               <label className="space-y-2 text-sm font-semibold text-slate-600">
                 <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-rose-400">
@@ -722,48 +758,9 @@ export default function Profile() {
               </label>
             </div>
 
-            <div className="space-y-5">
-              <div>
-                <p className="mb-2 text-sm font-semibold text-slate-600">Môn học muốn học cùng</p>
-                <div className="flex flex-wrap gap-2">
-                  {renderTagList(
-                    'studySubjects',
-                    'Chưa có môn học nào',
-                    { bg: 'bg-teal-50', border: 'border-teal-200', text: 'text-teal-600' },
-                  )}
-                </div>
-                {isEditing && (
-                  <div className="mt-3 flex gap-2">
-                    <input
-                      type="text"
-                      disabled={!isEditing}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          handleAddTag('studySubjects', event.currentTarget.value);
-                          event.currentTarget.value = '';
-                        }
-                      }}
-                      className="flex-1 rounded-3xl border border-teal-100 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm focus:border-teal-300 focus:outline-none focus:ring-4 focus:ring-teal-100"
-                      placeholder="Ví dụ: Giải tích, Lập trình C++"
-                    />
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        const input = event.currentTarget.previousElementSibling;
-                        if (input && input.value) {
-                          handleAddTag('studySubjects', input.value);
-                          input.value = '';
-                        }
-                      }}
-                      className="rounded-3xl border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-600 shadow-sm transition hover:border-teal-300 hover:text-teal-700"
-                    >
-                      Thêm
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+            <p className="text-sm text-slate-500">
+              Cập nhật đúng khoa và khóa học giúp hệ thống gợi ý bạn bè đồng môn chính xác hơn.
+            </p>
           </div>
         </section>
       );
@@ -806,13 +803,11 @@ export default function Profile() {
     <div className={`${pastelGradient} min-h-screen pb-24 pt-28`}>
       <Navbar />
       <div className="relative z-10 mx-auto max-w-6xl px-4">
-        <div className="rounded-[36px] border border-white/60 bg-white/80 p-8 shadow-2xl shadow-rose-100/60 backdrop-blur-lg">
-          <header className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-[#f9b2d1] via-[#ffc9de] to-[#ffe4d7] p-10 shadow-xl shadow-rose-200/70">
-            <div className="absolute -left-16 -top-24 h-48 w-48 rounded-full bg-white/30 blur-3xl" aria-hidden="true" />
-            <div className="absolute -right-24 -bottom-28 h-56 w-56 rounded-full bg-white/20 blur-3xl" aria-hidden="true" />
+        <div className="rounded-[32px] border border-rose-100 bg-white p-8 shadow-[0_24px_60px_-40px_rgba(233,114,181,0.45)]">
+          <header className="relative rounded-[28px] border border-rose-100 bg-white p-8 shadow-[0_18px_45px_-35px_rgba(233,114,181,0.4)]">
             <div className="relative z-10 grid gap-8 lg:grid-cols-[1.5fr,1fr] lg:items-center">
               <div className="space-y-5 text-rose-950">
-                <p className="inline-flex items-center gap-2 rounded-full bg-white/60 px-4 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-rose-500">
+                <p className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-rose-500">
                   <Heart className="h-4 w-4" /> Hồ sơ HUSTLove
                 </p>
                 <div className="space-y-3">
@@ -824,20 +819,23 @@ export default function Profile() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3 text-xs font-semibold text-rose-700/80">
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-4 py-2">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2">
                     <Sparkles className="h-4 w-4" /> Hồ sơ càng đầy đủ càng dễ được chú ý
                   </span>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-4 py-2">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2">
                     <MapPin className="h-4 w-4" /> Bạn đang ở {displayLocation}
+                  </span>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-2">
+                    <Home className="h-4 w-4" /> Đến từ {displayHometown}
                   </span>
                 </div>
               </div>
-              <div className="flex flex-col gap-4 rounded-[28px] border border-white/60 bg-white/40 p-6 text-sm text-rose-700 shadow-lg shadow-rose-200/50">
+              <div className="flex flex-col gap-4 rounded-[24px] border border-rose-100 bg-white p-6 text-sm text-rose-700 shadow-[0_12px_32px_-26px_rgba(233,114,181,0.45)]">
                 <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.22em] text-rose-400">
                   <span>Tiến độ</span>
                   <span className="text-sm font-semibold text-rose-600">{completionMetrics.percent}%</span>
                 </div>
-                <div className="h-2.5 w-full rounded-full bg-white/60">
+                <div className="h-2.5 w-full rounded-full bg-rose-100/60">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-rose-400 via-rose-500 to-pink-500 transition-all"
                     style={{ width: `${completionMetrics.percent}%` }}
@@ -850,7 +848,7 @@ export default function Profile() {
                   <button
                     type="button"
                     onClick={() => setIsEditing((prev) => !prev)}
-                    className="inline-flex items-center gap-2 rounded-full bg-white/80 px-5 py-2 font-semibold text-rose-600 shadow-sm shadow-rose-100 transition hover:bg-white"
+                    className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-5 py-2 font-semibold text-rose-600 shadow-sm transition hover:bg-white"
                   >
                     {isEditing ? 'Hủy chỉnh sửa' : 'Chỉnh sửa hồ sơ'}
                   </button>
@@ -863,8 +861,8 @@ export default function Profile() {
           </header>
 
           <section className="mt-8 grid gap-8 lg:grid-cols-[320px,1fr]">
-            <aside className="space-y-6 rounded-[32px] border border-rose-100 bg-white/85 p-6 shadow-lg shadow-rose-100/60">
-              <div className="rounded-[28px] border border-rose-100 bg-white/95 p-5 shadow-inner shadow-rose-200/50">
+            <aside className="space-y-6 rounded-[28px] border border-rose-100 bg-white p-6 shadow-[0_12px_32px_-26px_rgba(233,114,181,0.4)]">
+              <div className="rounded-[24px] border border-rose-100 bg-white p-5 shadow-inner shadow-rose-100/40">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-rose-500">Hành trình hồ sơ</p>
                 <div className="mt-4 space-y-2">
                   {steps.map((step, index) => {
@@ -878,7 +876,7 @@ export default function Profile() {
                         onClick={() => handleStepSelect(index)}
                         className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
                           isActive
-                            ? 'border-rose-300 bg-rose-50 shadow-sm shadow-rose-200'
+                            ? 'border-rose-300 bg-rose-50 shadow-sm'
                             : 'border-transparent bg-white hover:border-rose-200 hover:bg-rose-50'
                         }`}
                         aria-current={isActive}
@@ -886,11 +884,15 @@ export default function Profile() {
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-start gap-3">
                             <span
-                              className={`mt-1 inline-flex h-9 w-9 items-center justify-center rounded-full ${
+                              className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${
                                 isActive ? 'bg-rose-500 text-white' : 'bg-rose-100 text-rose-500'
                               }`}
                             >
-                              {isComplete ? <CheckCircle className="h-4 w-4" /> : <StepIcon className="h-4 w-4" />}
+                              {isComplete ? (
+                                <CheckCircle className="h-[20px] w-[20px]" strokeWidth={2.2} />
+                              ) : (
+                                <StepIcon className="h-[20px] w-[20px]" strokeWidth={2.2} />
+                              )}
                             </span>
                             <div>
                               <p className="text-sm font-semibold text-slate-700">{step.label}</p>
@@ -910,7 +912,7 @@ export default function Profile() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-rose-100 bg-white/90 p-6 text-center shadow-inner shadow-rose-100/70">
+              <div className="rounded-[24px] border border-rose-100 bg-white p-6 text-center shadow-inner shadow-rose-100/60">
                 <div className="flex items-center justify-between text-xs font-semibold text-rose-500">
                   <span>Ảnh hồ sơ</span>
                   <span>{formData.photoGallery.length} ảnh</span>
@@ -933,7 +935,7 @@ export default function Profile() {
                       <button
                         type="button"
                         onClick={() => handlePhotoNavigate('prev')}
-                        className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-rose-400 shadow-md transition hover:bg-white"
+                        className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-rose-400 shadow-sm transition hover:bg-white"
                         aria-label="Ảnh trước"
                       >
                         <ChevronLeft className="h-4 w-4" />
@@ -941,7 +943,7 @@ export default function Profile() {
                       <button
                         type="button"
                         onClick={() => handlePhotoNavigate('next')}
-                        className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/80 text-rose-400 shadow-md transition hover:bg-white"
+                        className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-rose-400 shadow-sm transition hover:bg-white"
                         aria-label="Ảnh tiếp theo"
                       >
                         <ChevronRight className="h-4 w-4" />
@@ -952,7 +954,7 @@ export default function Profile() {
                     <button
                       type="button"
                       onClick={() => photoInputRef.current?.click()}
-                      className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-400 via-rose-500 to-pink-500 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-rose-200/70 transition hover:scale-[1.02]"
+                      className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-400 via-rose-500 to-pink-500 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-rose-200/60 transition hover:scale-[1.02]"
                     >
                       <Camera className="h-4 w-4" />
                       Thêm ảnh

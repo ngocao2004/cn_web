@@ -10,11 +10,9 @@ import HomeUser from "./pages/HomeUser";
 import CompleteProfile from "./pages/CompleteProfile";
 import Messenger from "./pages/Messenger";
 import { io } from "socket.io-client";
-import { useState, createContext, useEffect } from "react";
+import { useState, useEffect } from "react";
 import AIChatPage from "./pages/AIChatPage";
-
-export const SocketContext = createContext(null);
-export const UserContext = createContext(null);
+import { SocketContext, UserContext } from "./contexts";
 
 function App() {
   const [socket, setSocket] = useState(null);

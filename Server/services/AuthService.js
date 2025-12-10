@@ -128,6 +128,12 @@ const generateAndSaveRefreshToken = async (userId) => {
 export const registerUser = async (userData) => {
     const { name, email, password, gender, ...rest } = userData;
 
+    if(!email.endsWith('@sis.hust.edu.vn')) {
+        const error = new Error('Bạn phải đăng ký với email của HUST.');
+        error.statusCode = httpStatus.BAD_REQUEST;
+        throw error;
+    }
+
     if (await User.findOne({ email })) {
         const error = new Error('Email đã được sử dụng.');
         error.statusCode = httpStatus.CONFLICT;
