@@ -142,6 +142,8 @@ export default function Home() {
   };
 
   return (
+    <div>
+      <div>
     <div className="min-h-screen bg-gradient-to-b from-[#fff1f5] via-[#fde5ef] to-[#ede9ff]">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center px-4 pt-24 pb-16">
         <div className="flex w-full max-w-md flex-col items-center text-center text-sm text-rose-500/80">
@@ -262,7 +264,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          ))}
         </div>
 
               <div className="flex flex-col items-center gap-6">

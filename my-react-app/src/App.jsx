@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Landing from "./pages/Landing";
 import Home from "./pages/Home";
@@ -11,7 +11,6 @@ import CompleteProfile from "./pages/CompleteProfile";
 import Messenger from './pages/Messenger';
 import { io } from "socket.io-client";
 import { useState, createContext, useEffect } from "react";
-import User from "../../Server/models/User";
 import AIChatPage from './pages/AIChatPage';
 
 export const SocketContext = createContext(null);
@@ -22,7 +21,6 @@ function App() {
   const [user, setUser] = useState(null);
   const API_URL = import.meta.env.VITE_API_URL;
 
-  // 🔹 Load user từ sessionStorage khi mount
   useEffect(() => {
     const storedUser = sessionStorage.getItem("user");
     if (storedUser) {
@@ -30,30 +28,27 @@ function App() {
     }
   }, []);
 
-  // 🔹 Tạo socket KHI CÓ USER (dependency: user)
   useEffect(() => {
-    if (!user) return; // ✅ Chờ có user mới tạo socket
+    if (!user) return;
 
     console.log("🔌 Creating socket for user:", user.id);
     const newSocket = io(API_URL, { withCredentials: true });
 
     newSocket.on("connect", () => {
       console.log("✅ Socket connected:", newSocket.id);
-      console.log("👀 Emitting set_user with id:", user.id);
       newSocket.emit("set_user", { userId: user.id });
     });
 
     setSocket(newSocket);
 
-    // Cleanup khi user thay đổi hoặc component unmount
     return () => {
       console.log("🔌 Disconnecting socket");
       newSocket.disconnect();
     };
-  }, [user, API_URL]); // ✅ Dependency: user
+  }, [user, API_URL]);
 
   return (
-    <Router>
+    <>
       <Navbar />
       <Routes>
         <Route path="/" element={<Landing />} />
@@ -65,8 +60,9 @@ function App() {
         <Route path="/chat" element={<Chat />} />
         <Route path="/messenger" element={<Messenger />} />
         <Route path="/complete-profile" element={<CompleteProfile />} />
+        <Route path="/ai-chat" element={<AIChatPage />} />
       </Routes>
-    </Router>
+    </>
   );
 }
 

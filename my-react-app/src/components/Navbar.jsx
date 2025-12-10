@@ -5,6 +5,7 @@ import { Heart, Bell, Menu, X } from "lucide-react";
 export default function Navbar() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
