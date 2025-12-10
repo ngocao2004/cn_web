@@ -178,7 +178,7 @@ export default function Profile() {
     const fetchProfile = async () => {
       try {
         const userId = currentUser.id || currentUser._id;
-        const res = await axios.get(`${API_URL}/api/auth/profile/${userId}`);
+        const res = await axios.get(`${API_URL}/api/users/${userId}/profile`);
         const user = res.data?.user;
         setProfile(user);
 
@@ -358,7 +358,6 @@ export default function Profile() {
 
     try {
       const payload = {
-        userId,
         name: formData.name.trim(),
         age: formData.age,
         gender: formData.gender,
@@ -375,7 +374,7 @@ export default function Profile() {
         avatar: formData.photoGallery[0] || profile?.avatar || '',
       };
 
-      const res = await axios.put(`${API_URL}/api/auth/profile`, payload, {
+      const res = await axios.put(`${API_URL}/api/users/${userId}/profile`, payload, {
         headers: { 'Content-Type': 'application/json' },
         withCredentials: true,
       });
@@ -386,6 +385,10 @@ export default function Profile() {
       }
 
       setProfile(nextUser);
+      setFormData((prev) => ({
+        ...prev,
+        photoGallery: Array.isArray(nextUser.photoGallery) ? nextUser.photoGallery : prev.photoGallery,
+      }));
       sessionStorage.setItem(
         'user',
         JSON.stringify({

@@ -100,6 +100,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'Not updated'
   },
+
+  avatar: {
+    type: String,
+    default: ''
+  },
   
   photoGallery: {
     type: [String],
@@ -132,32 +137,43 @@ const userSchema = new mongoose.Schema({
 
 userSchema.index({ geoLocation: '2dsphere' });
 userSchema.methods.isProfileComplete = function() {
-  const hasHobbies = Array.isArray(this.hobbies) && this.hobbies.length > 0;
-  const hasStudySubjects = Array.isArray(this.studySubjects) && this.studySubjects.length > 0;
-  const hasDob = this.dob instanceof Date && !Number.isNaN(this.dob.valueOf());
-  const hometownFilled = typeof this.hometown === 'string' && this.hometown.trim() !== '' && this.hometown !== 'Not updated';
-  const locationFilled = typeof this.location === 'string' && this.location !== 'Not updated';
-  const careerFilled = typeof this.career === 'string' && this.career !== 'Not updated';
-  const classYearFilled = typeof this.classYear === 'string' && this.classYear !== 'Not updated';
-  const bioFilled = typeof this.bio === 'string' && this.bio !== 'Not updated' && this.bio.trim().length > 0;
-  const zodiacFilled = typeof this.zodiac === 'string' && this.zodiac !== 'Unknown';
-  const connectionGoalFilled = typeof this.connectionGoal === 'string' && this.connectionGoal !== '';
+  const normalizeString = (value) =>
+    typeof value === 'string' ? value.trim() : '';
 
+  const hasGender = normalizeString(this.gender).length > 0;
+  const hasDob = this.dob instanceof Date && !Number.isNaN(this.dob.valueOf());
+  const hometownFilled = normalizeString(this.hometown) && this.hometown !== 'Not updated';
+  const locationFilled = normalizeString(this.location) && this.location !== 'Not updated';
+  const careerFilled = normalizeString(this.career) && this.career !== 'Not updated';
+  const classYearFilled = normalizeString(this.classYear) && this.classYear !== 'Not updated';
+  const normalizedBio = normalizeString(this.bio);
+  const bioFilled = normalizedBio.length >= 10 && this.bio !== 'Not updated';
+  const hasHobbies = Array.isArray(this.hobbies) && this.hobbies.length > 0;
+  const connectionGoalFilled = normalizeString(this.connectionGoal).length > 0
+    || normalizeString(this.preferences?.connectionGoal).length > 0;
+
+  const hasAvatar = typeof this.avatar === 'string' && normalizeString(this.avatar).length > 0;
+  const hasGallery = Array.isArray(this.photoGallery)
+    && this.photoGallery.some((url) => normalizeString(url).length > 0);
+  const hasVisualIdentity = hasAvatar || hasGallery || normalizeString(this.name).length > 0;
+
+  const hasLocation = hometownFilled || locationFilled;
   return Boolean(
-    this.gender
+    hasGender
     && hasDob
-    && careerFilled
-    && locationFilled
-    && bioFilled
-    && hasHobbies
-    && hasStudySubjects
-    && typeof this.academicHighlights === 'string' && this.academicHighlights.trim().length > 0
+    && hasLocation
     && connectionGoalFilled
+    && hasVisualIdentity
+    && careerFilled
     && classYearFilled
-    && hometownFilled
-    && zodiacFilled
+    && (bioFilled || hasHobbies)
   );
 };
+
+userSchema.virtual('avatarInitial').get(function() {
+  const normalizedName = typeof this.name === 'string' ? this.name.trim() : '';
+  return normalizedName ? normalizedName.charAt(0).toUpperCase() : '';
+});
 
 userSchema.virtual('age').get(function() {
     if (!this.dob) return null;

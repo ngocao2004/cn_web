@@ -268,20 +268,12 @@ export default function CompleteProfile() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
   const [photoPreview, setPhotoPreview] = useState('');
+  const [photoData, setPhotoData] = useState('');
   const [isCheckingCompletion, setIsCheckingCompletion] = useState(true);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   const [locationError, setLocationError] = useState('');
   const isDev = import.meta.env.DEV;
   const fileInputRef = useRef(null);
-  const previewUrlRef = useRef('');
-
-  useEffect(() => {
-    return () => {
-      if (previewUrlRef.current && previewUrlRef.current.startsWith('blob:')) {
-        URL.revokeObjectURL(previewUrlRef.current);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('user');
@@ -313,7 +305,7 @@ export default function CompleteProfile() {
 
     const verifyProfileCompletion = async () => {
       try {
-        const response = await axios.get(`${API_URL}/api/auth/profile/${userId}`, {
+        const response = await axios.get(`${API_URL}/api/users/${userId}/profile`, {
           withCredentials: true,
         });
         const serverUser = response.data?.user;
@@ -335,6 +327,7 @@ export default function CompleteProfile() {
             ? mergedUser.photoGallery[0]
             : '');
         setPhotoPreview(initialPreview || '');
+        setPhotoData(initialPreview || '');
       } catch (error) {
         console.error('Failed to verify profile completion', error);
         if (parsedUser?.isProfileComplete) {
@@ -350,6 +343,7 @@ export default function CompleteProfile() {
             ? parsedUser.photoGallery[0]
             : '');
         setPhotoPreview(fallbackPreview || '');
+        setPhotoData(fallbackPreview || '');
       } finally {
         setIsCheckingCompletion(false);
       }
@@ -659,12 +653,24 @@ export default function CompleteProfile() {
     if (!file) {
       return;
     }
-    if (previewUrlRef.current && previewUrlRef.current.startsWith('blob:')) {
-      URL.revokeObjectURL(previewUrlRef.current);
+    if (!file.type.startsWith('image/')) {
+      setServerMessage('Vui lòng chọn đúng định dạng ảnh.');
+      return;
     }
-    const objectUrl = URL.createObjectURL(file);
-    previewUrlRef.current = objectUrl;
-    setPhotoPreview(objectUrl);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result : '';
+      if (!result) {
+        setServerMessage('Không thể đọc file ảnh.');
+        return;
+      }
+      setPhotoPreview(result);
+      setPhotoData(result);
+    };
+    reader.onerror = () => {
+      setServerMessage('Không thể đọc file ảnh.');
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSectionHeaderClick = (index) => {
@@ -731,7 +737,6 @@ export default function CompleteProfile() {
       const currentHometown = sanitizeLocationValue(user?.hometown);
 
       const payload = {
-        userId: user.id || user._id,
         gender: formData.gender,
         age: typeof derivedAge === 'number' ? derivedAge : undefined,
         dob: formData.dob,
@@ -750,9 +755,22 @@ export default function CompleteProfile() {
           distance: formData.preferences.distance,
           connectionGoal: formData.connectionGoal,
         },
+        photoGallery: photoData
+          ? [photoData]
+          : Array.isArray(user?.photoGallery) && user.photoGallery.length > 0
+          ? user.photoGallery
+          : user?.avatar
+          ? [user.avatar]
+          : [],
+        avatar: photoData
+          || (Array.isArray(user?.photoGallery) && user.photoGallery.length > 0
+            ? user.photoGallery[0]
+            : user?.avatar
+          )
+          || '',
       };
 
-      const response = await axios.put(`${API_URL}/api/auth/profile`, payload, {
+      const response = await axios.put(`${API_URL}/api/users/${user.id || user._id}/profile`, payload, {
         headers: { 'Content-Type': 'application/json' },
         withCredentials: true,
       });
@@ -804,6 +822,10 @@ export default function CompleteProfile() {
           nextUser.preferences?.lookingFor ||
           nextUser.lookingFor ||
           payload.preferences.lookingFor,
+        avatar: nextUser.avatar || payload.avatar || user.avatar || '',
+        photoGallery: Array.isArray(nextUser.photoGallery)
+          ? nextUser.photoGallery
+          : payload.photoGallery,
         isProfileComplete: nextUser.isProfileComplete ?? true,
       };
 

@@ -79,6 +79,7 @@ export default function Login() {
 
       window.dispatchEvent(new Event("userChanged"));
 
+      console.log("check userForChat.isProfileComplete", userForChat.isProfileComplete);
       // 🔥 Kiểm tra profile đã hoàn thiện chưa
       if (!userForChat.isProfileComplete) {
         console.log("➡️ Chuyển đến /complete-profile");
