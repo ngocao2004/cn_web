@@ -78,11 +78,15 @@ export default function Home() {
   const [photoIndex, setPhotoIndex] = useState(0);
 
   const activeProfile = matchQueue[activeIndex];
-  const photos = activeProfile?.images?.length
-    ? activeProfile.images
-    : activeProfile?.image
-    ? [activeProfile.image]
-    : [];
+  const photos = useMemo(() => {
+    if (!activeProfile) {
+      return [];
+    }
+    if (Array.isArray(activeProfile.images) && activeProfile.images.length > 0) {
+      return activeProfile.images;
+    }
+    return activeProfile.image ? [activeProfile.image] : [];
+  }, [activeProfile]);
   const finderName = storedUser?.name || 'Trần Văn Đức Anh';
   const finderInitial = finderName?.charAt(0) || 'H';
   const finderClass = storedUser?.classYear || 'K65';
@@ -142,7 +146,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#fff1f5] via-[#fde5ef] to-[#ede9ff]">
+    <div className="min-h-screen bg-[#fff5f8]">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center px-4 pt-24 pb-16">
         <div className="flex w-full max-w-md flex-col items-center text-center text-sm text-rose-500/80">
           <span className="font-medium uppercase tracking-[0.35em]">find love</span>
