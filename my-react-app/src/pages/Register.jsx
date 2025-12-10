@@ -72,7 +72,6 @@ export default function Register() {
 
       sessionStorage.setItem("user", JSON.stringify(userForSession));
       window.dispatchEvent(new Event("userChanged"));
-
       navigate(userForSession.isProfileComplete ? "/feed" : "/complete-profile");
     } catch (err) {
       console.error("❌ Lỗi khi gửi request:", err);
