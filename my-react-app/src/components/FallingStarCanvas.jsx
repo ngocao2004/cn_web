@@ -1,63 +1,71 @@
 import { useEffect, useRef } from "react";
-import React from "react";
 
 export default function FallingStarCanvas() {
   const canvasRef = useRef(null);
-  const stars = [];
-  const STAR_COUNT = 200;
+  const animationFrameRef = useRef(null);
+  const starsRef = useRef([]);
+  const STAR_COUNT = 160; // slightly fewer stars to lighten render work
 
-  function createStar(width, height) {
-    return {
-      x: Math.random() * width,
-      y: Math.random() * height,
-      size: Math.random() * 2 + 1,
-      speed: Math.random() * 1 + 0.5, 
-      opacity: Math.random() * 0.8 + 0.2,
-    };
-  }
+  const createStar = (width, height) => ({
+    x: Math.random() * width,
+    y: Math.random() * height,
+    size: Math.random() * 2 + 1,
+    speed: Math.random() * 1 + 0.5,
+    opacity: Math.random() * 0.8 + 0.2,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+
     const ctx = canvas.getContext("2d");
+    const stars = starsRef.current;
 
-    // Fullscreen
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
 
-    // Tạo danh sách sao ban đầu
-    for (let i = 0; i < STAR_COUNT; i++) {
-      stars.push(createStar(canvas.width, canvas.height));
-    }
+      if (stars.length === 0) {
+        for (let i = 0; i < STAR_COUNT; i += 1) {
+          stars.push(createStar(canvas.width, canvas.height));
+        }
+      }
+    };
 
-    function draw() {
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      for (let s of stars) {
-        ctx.globalAlpha = s.opacity;
+      for (const star of stars) {
+        ctx.globalAlpha = star.opacity;
         ctx.fillStyle = "white";
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
         ctx.fill();
 
-        // Update vị trí rơi
-        s.y += s.speed;
+        star.y += star.speed;
 
-        if (s.y > canvas.height) {
-          s.x = Math.random() * canvas.width;
-          s.y = -10;
+        if (star.y > canvas.height) {
+          star.x = Math.random() * canvas.width;
+          star.y = -10;
         }
       }
 
-      requestAnimationFrame(draw);
-    }
+      animationFrameRef.current = requestAnimationFrame(draw);
+    };
 
-    draw();
+    animationFrameRef.current = requestAnimationFrame(draw);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      window.removeEventListener("resize", resizeCanvas);
+      stars.length = 0;
+    };
   }, []);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 pointer-events-none"
-    />
-  );
+  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />;
 }

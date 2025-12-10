@@ -1,18 +1,20 @@
 import mongoose from 'mongoose';
 
 const messageSchema = new mongoose.Schema({
-  conversationId: {
+  chatRoomId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Conversation',
-    required: true
+    ref: 'Match',
+    required: true,
+    index: true
   },
   
   senderId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true, 
+    index: true
   },
-  
+
   // Content
   content: {
     type: String,
@@ -26,11 +28,11 @@ const messageSchema = new mongoose.Schema({
     default: 'text'
   },
   
-  // Read status
-  readBy: [{
-    userId: mongoose.Schema.Types.ObjectId,
-    readAt: Date
-  }],
+  status: {
+    type: String,
+    enum: ['sent', 'delivered', 'read'],
+    default: 'sent'
+  },
   
   // Reactions
   reactions: [{
@@ -43,15 +45,12 @@ const messageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message'
   },
-  
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+
+
 }, {
   timestamps: true
 });
 
-messageSchema.index({ conversationId: 1, createdAt: -1 });
+messageSchema.index({ chatRoomId: 1, createdAt: -1 });
 
 export default mongoose.model('Message', messageSchema);

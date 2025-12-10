@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Heart, Bell, Menu, X } from "lucide-react";
+import { UserContext } from "../contexts";
 
-export default function Navbar() {
+export default function Navbar({ user: controlledUser, socket }) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user: contextUser, setUser: setUserContext } = useContext(UserContext) ?? {};
+  const [user, setLocalUser] = useState(controlledUser ?? contextUser ?? null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -15,31 +18,44 @@ export default function Navbar() {
     { label: "Study", path: "/home" },
   ];
 
-  const loadUser = () => {
-    const storedUser = sessionStorage.getItem("user");
-    if (storedUser && storedUser !== "undefined") {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error("Lỗi khi parse user:", error);
-        sessionStorage.removeItem("user");
-        setUser(null);
-      }
-    } else {
-      setUser(null);
-    }
-  };
-
   useEffect(() => {
-    loadUser();
+    if (controlledUser !== undefined) {
+      setLocalUser(controlledUser);
+      return;
+    }
 
+    if (contextUser !== undefined) {
+      setLocalUser(contextUser);
+      return;
+    }
+
+    const loadUser = () => {
+      const storedUser = sessionStorage.getItem("user");
+      if (storedUser && storedUser !== "undefined") {
+        try {
+          const parsed = JSON.parse(storedUser);
+          setLocalUser(parsed);
+          setUserContext?.(parsed);
+        } catch (error) {
+          console.error("Lỗi khi parse user:", error);
+          sessionStorage.removeItem("user");
+          setLocalUser(null);
+          setUserContext?.(null);
+        }
+      } else {
+        setLocalUser(null);
+        setUserContext?.(null);
+      }
+    };
+
+    loadUser();
     const handleUserChange = () => loadUser();
     window.addEventListener("userChanged", handleUserChange);
 
     return () => {
       window.removeEventListener("userChanged", handleUserChange);
     };
-  }, []);
+  }, [controlledUser, contextUser, setUserContext]);
 
   useEffect(() => {
     setShowDropdown(false);
@@ -58,10 +74,12 @@ export default function Navbar() {
     sessionStorage.removeItem("user");
     console.log("🗑️ Đã xóa sessionStorage");
     
-    setUser(null);
+    setLocalUser(null);
+    setUserContext?.(null);
     console.log("✅ Đã clear user context");
     
     setShowDropdown(false);
+    window.dispatchEvent(new Event("userChanged"));
     navigate("/login");
   };
 

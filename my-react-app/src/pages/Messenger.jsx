@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useContext } from 'react';
-import { SocketContext } from '../App.jsx';
+import { useState, useEffect, useRef, useContext, useCallback } from 'react';
+import { SocketContext } from '../contexts';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Heart, Smile, Image as ImageIcon, Send, HeartHandshake } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Heart, Smile, Image as ImageIcon, Send, HeartHandshake } from 'lucide-r
 export default function Messenger() {
   const navigate = useNavigate();
   const location = useLocation();
+  const targetConversationId = location.state?.conversationId;
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -96,18 +97,17 @@ export default function Messenger() {
   }, [user, socket]); 
 
   // ✅ Fetch conversations
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       const res = await axios.get(`${API_URL}/api/conversations?userId=${user.id}`);
-      
+
       if (res.data.success) {
         setConversations(res.data.conversations);
-        
-        const targetConvId = location.state?.conversationId;
-        if (targetConvId && !selectedConversation) {
-          const conv = res.data.conversations.find(c => c._id === targetConvId);
+
+        if (targetConversationId && !selectedConversation) {
+          const conv = res.data.conversations.find(c => c._id === targetConversationId);
           if (conv) {
             handleSelectConversation(conv);
           }
@@ -116,20 +116,20 @@ export default function Messenger() {
     } catch (error) {
       console.error('Error fetching conversations:', error);
     }
-  };
+  }, [API_URL, handleSelectConversation, selectedConversation, targetConversationId, user]);
 
   useEffect(() => {
     if (user) {
       fetchConversations();
     }
-  }, [user]);
+  }, [fetchConversations, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // ✅ Select conversation
-  const handleSelectConversation = async (conv) => {
+  const handleSelectConversation = useCallback(async (conv) => {
     console.log('📂 Selecting conversation:', conv._id);
     setSelectedConversation(conv);
     
@@ -152,7 +152,7 @@ export default function Messenger() {
     } catch (error) {
       console.error('Error loading messages:', error);
     }
-  };
+  }, [API_URL, socket]);
 
   // ✅ Send message
   const handleSendMessage = (e) => {
@@ -234,6 +234,16 @@ export default function Messenger() {
               </div>
             </div>
 
+            <div className="mt-4">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm kiếm theo tên"
+                className="w-full rounded-[20px] border border-white/50 bg-white/70 px-4 py-2 text-sm text-slate-700 placeholder-rose-300 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-200"
+              />
+            </div>
+
             <div className="mt-5 flex-1 space-y-3 overflow-y-auto pr-1">
               {conversations.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-dashed border-rose-200/70 bg-white/60 p-6 text-center text-rose-400">
@@ -245,8 +255,13 @@ export default function Messenger() {
                     Tìm người mới
                   </button>
                 </div>
+              ) : filteredConversations.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center rounded-[28px] border border-dashed border-rose-200/70 bg-white/60 p-6 text-center text-rose-400">
+                  <p className="text-sm">Không tìm thấy kết quả phù hợp</p>
+                  <p className="mt-1 text-xs">Hãy thử từ khóa khác nhé</p>
+                </div>
               ) : (
-                conversations.map((conv) => {
+                filteredConversations.map((conv) => {
                   const isActive = selectedConversation?._id === conv._id;
                   return (
                     <button

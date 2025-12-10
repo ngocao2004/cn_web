@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import FallingStarCanvas from "./FallingStarCanvas";
 import { HeartIcon, ChatBubbleBottomCenterIcon, LockClosedIcon, UserCircleIcon, CalendarIcon, SparklesIcon } from "@heroicons/react/24/outline";
 
 export default function HexagonAutoSpin() {
   const faceWidth = 400; 
-  const faceHeight = 300;  
   const faces = 6;
   const angle = 360 / faces; 
   const [rotation, setRotation] = useState(0);
@@ -26,7 +25,7 @@ export default function HexagonAutoSpin() {
     }, 2000); 
 
     return () => clearInterval(interval);
-  }, []);
+  }, [angle]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-black via-purple-900 to-black text-white relative overflow-hidden">

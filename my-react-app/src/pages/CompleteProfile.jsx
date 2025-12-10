@@ -75,12 +75,6 @@ const classYearOptions = ['K65', 'K66', 'K67', 'K68', 'K69', 'Khác'];
 
 const connectionGoalOptions = [
   {
-    value: 'study',
-    label: 'Học cùng',
-    description: 'Tìm bạn đồng hành trên giảng đường',
-    icon: BookOpen,
-  },
-  {
     value: 'friendship',
     label: 'Kết bạn',
     description: 'Mở rộng vòng tròn bạn bè Bách khoa',
@@ -100,9 +94,9 @@ const defaultForm = {
   career: '',
   classYear: '',
   location: '',
+  geoLocation: null,
   bio: '',
   hobbies: [],
-  studySubjects: [],
   zodiac: '',
   connectionGoal: '',
   academicHighlights: '',
@@ -153,51 +147,115 @@ const getZodiacFromDob = (dob) => {
   return '';
 };
 
+const sanitizeText = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+  if (trimmed.toLowerCase() === 'not updated') {
+    return '';
+  }
+  return trimmed;
+};
+
+const pickFirstText = (...candidates) => {
+  for (const candidate of candidates) {
+    const sanitized = sanitizeText(candidate);
+    if (sanitized) {
+      return sanitized;
+    }
+  }
+  return '';
+};
+
+const sanitizeStringArray = (values) => {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return values
+    .map((item) => sanitizeText(item))
+    .filter(Boolean);
+};
+
+const parseNumericValue = (value, fallback) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const numeric = Number(value.trim());
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+  }
+  return fallback;
+};
+
 const formatDobForInput = (dobValue) => {
   if (!dobValue) {
     return '';
   }
-  if (dobValue.includes('T')) {
-    return dobValue.split('T')[0];
+  if (dobValue instanceof Date && Number.isFinite(dobValue.getTime())) {
+    return dobValue.toISOString().split('T')[0];
   }
-  return dobValue;
+  if (typeof dobValue !== 'string') {
+    return '';
+  }
+  const sanitized = sanitizeText(dobValue);
+  if (!sanitized) {
+    return '';
+  }
+  if (sanitized.includes('T')) {
+    return sanitized.split('T')[0];
+  }
+  return sanitized;
 };
 
-const hydrateFormFromUser = (user) => ({
-  gender: user.gender || '',
-  dob: formatDobForInput(user.dob),
-  career: user.faculty || user.career || user.job || '',
-  classYear: user.classYear || user.khoaHoc || '',
-  location: user.hometown || user.location || '',
-  bio: user.bio || '',
-  hobbies: Array.isArray(user.hobbies) ? user.hobbies : [],
-  studySubjects: Array.isArray(user.studySubjects)
-    ? user.studySubjects
-    : Array.isArray(user.preferences?.studySubjects)
-    ? user.preferences.studySubjects
-    : [],
-  zodiac: user.zodiac || '',
-  connectionGoal:
-    user.connectionGoal ||
-    user.preferences?.connectionGoal ||
-    user.lookingForGoal ||
-    '',
-  academicHighlights: user.academicHighlights || '',
-  preferences: {
-    lookingFor:
-      user.preferences?.lookingFor || user.lookingFor || user.preferencesLookingFor || 'All',
-    ageRange: {
-      min: user.preferences?.ageRange?.min || user.preferenceAgeMin || 20,
-      max: user.preferences?.ageRange?.max || user.preferenceAgeMax || 35,
+const hydrateFormFromUser = (user) => {
+  const sanitizedHobbies = sanitizeStringArray(user.hobbies);
+
+  return {
+    gender: pickFirstText(user.gender),
+    dob: formatDobForInput(user.dob),
+    career: pickFirstText(user.faculty, user.career, user.job),
+    classYear: pickFirstText(user.classYear, user.khoaHoc),
+    location: pickFirstText(user.hometown, user.location),
+    geoLocation: user.geoLocation || null,
+    bio: pickFirstText(user.bio),
+    hobbies: sanitizedHobbies,
+    zodiac: pickFirstText(user.zodiac),
+    connectionGoal: pickFirstText(
+      user.connectionGoal,
+      user.preferences?.connectionGoal,
+      user.lookingForGoal,
+    ),
+    academicHighlights: pickFirstText(user.academicHighlights),
+    preferences: {
+      lookingFor:
+        pickFirstText(
+          user.preferences?.lookingFor,
+          user.lookingFor,
+          user.preferencesLookingFor,
+        ) || 'All',
+      ageRange: {
+        min: parseNumericValue(
+          user.preferences?.ageRange?.min ?? user.preferenceAgeMin,
+          20,
+        ),
+        max: parseNumericValue(
+          user.preferences?.ageRange?.max ?? user.preferenceAgeMax,
+          35,
+        ),
+      },
+      distance: parseNumericValue(
+        user.preferences?.distance ?? user.preferenceDistance,
+        30,
+      ),
     },
-    distance: user.preferences?.distance || user.preferenceDistance || 30,
-    studySubjects:
-      Array.isArray(user.preferences?.studySubjects) && user.preferences.studySubjects.length > 0
-        ? user.preferences.studySubjects
-        : undefined,
-    connectionGoal: user.preferences?.connectionGoal,
-  },
-});
+  };
+};
 
 export default function CompleteProfile() {
   const navigate = useNavigate();
@@ -205,12 +263,15 @@ export default function CompleteProfile() {
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState(defaultForm);
   const [hobbyInput, setHobbyInput] = useState('');
-  const [subjectInput, setSubjectInput] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
   const [photoPreview, setPhotoPreview] = useState('');
+  const [isCheckingCompletion, setIsCheckingCompletion] = useState(true);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const isDev = import.meta.env.DEV;
   const fileInputRef = useRef(null);
   const previewUrlRef = useRef('');
 
@@ -228,29 +289,135 @@ export default function CompleteProfile() {
       navigate('/login');
       return;
     }
+
+    let parsedUser;
     try {
-      const parsed = JSON.parse(stored);
-      setUser(parsed);
-      setFormData((prev) => ({ ...prev, ...hydrateFormFromUser(parsed) }));
-      const initialPreview =
-        parsed.avatar ||
-        (Array.isArray(parsed.photoGallery) && parsed.photoGallery.length > 0
-          ? parsed.photoGallery[0]
-          : '');
-      setPhotoPreview(initialPreview || '');
+      parsedUser = JSON.parse(stored);
     } catch (error) {
       console.error('Failed to parse user session', error);
       navigate('/login');
+      return;
     }
-  }, [navigate]);
 
-  const derivedAge = useMemo(() => getAgeFromDob(formData.dob), [formData.dob]);
-  const derivedZodiac = useMemo(() => {
-    if (formData.zodiac) {
-      return formData.zodiac;
+    if (parsedUser?.isProfileComplete) {
+      setIsCheckingCompletion(false);
+      navigate('/profile', { replace: true });
+      return;
     }
-    return getZodiacFromDob(formData.dob);
-  }, [formData.dob, formData.zodiac]);
+
+    const userId = parsedUser.id || parsedUser._id;
+    if (!userId) {
+      navigate('/login');
+      return;
+    }
+
+    const verifyProfileCompletion = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/auth/profile/${userId}`, {
+          withCredentials: true,
+        });
+        const serverUser = response.data?.user;
+
+        if (serverUser?.isProfileComplete) {
+          sessionStorage.setItem('user', JSON.stringify({ ...parsedUser, ...serverUser }));
+          setIsCheckingCompletion(false);
+          navigate('/profile', { replace: true });
+          return;
+        }
+
+        const mergedUser = serverUser ? { ...parsedUser, ...serverUser } : parsedUser;
+        const hydrated = hydrateFormFromUser(mergedUser);
+        setUser(mergedUser);
+        setFormData((prev) => ({ ...prev, ...hydrated }));
+        const initialPreview =
+          mergedUser.avatar ||
+          (Array.isArray(mergedUser.photoGallery) && mergedUser.photoGallery.length > 0
+            ? mergedUser.photoGallery[0]
+            : '');
+        setPhotoPreview(initialPreview || '');
+      } catch (error) {
+        console.error('Failed to verify profile completion', error);
+        if (parsedUser?.isProfileComplete) {
+          setIsCheckingCompletion(false);
+          navigate('/profile', { replace: true });
+          return;
+        }
+        setUser(parsedUser);
+        setFormData((prev) => ({ ...prev, ...hydrateFormFromUser(parsedUser) }));
+        const fallbackPreview =
+          parsedUser.avatar ||
+          (Array.isArray(parsedUser.photoGallery) && parsedUser.photoGallery.length > 0
+            ? parsedUser.photoGallery[0]
+            : '');
+        setPhotoPreview(fallbackPreview || '');
+      } finally {
+        setIsCheckingCompletion(false);
+      }
+    };
+
+    verifyProfileCompletion();
+  }, [API_URL, navigate]);
+
+  const coordinatesForDisplay = useMemo(() => {
+    const coords = formData.geoLocation?.coordinates;
+    if (!Array.isArray(coords) || coords.length !== 2) {
+      return null;
+    }
+    const [lng, lat] = coords;
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+      return null;
+    }
+    return { lat, lng };
+  }, [formData.geoLocation]);
+
+  const hasGeoLocation = useMemo(() => {
+    if (!coordinatesForDisplay) {
+      return false;
+    }
+    const { lat, lng } = coordinatesForDisplay;
+    return Math.abs(lat) > 0.0001 || Math.abs(lng) > 0.0001;
+  }, [coordinatesForDisplay]);
+
+  const locationCoordinateSummary = useMemo(() => {
+    if (!coordinatesForDisplay) {
+      return '';
+    }
+    const { lat, lng } = coordinatesForDisplay;
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  }, [coordinatesForDisplay]);
+
+  const locationSummary = useMemo(() => {
+    if (formData.location && formData.location !== 'Not updated') {
+      return formData.location;
+    }
+    if (!coordinatesForDisplay) {
+      return '';
+    }
+    const { lat, lng } = coordinatesForDisplay;
+    return `Vĩ độ ${lat.toFixed(4)}, Kinh độ ${lng.toFixed(4)}`;
+  }, [formData.location, coordinatesForDisplay]);
+
+  const isGeolocationSupported = typeof navigator !== 'undefined' && Boolean(navigator.geolocation);
+
+  useEffect(() => {
+    if (hasGeoLocation) {
+      setLocationError('');
+    }
+  }, [hasGeoLocation]);
+
+  const derivedAge = getAgeFromDob(formData.dob);
+  const derivedZodiac = formData.zodiac || getZodiacFromDob(formData.dob);
+
+  if (isCheckingCompletion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#ffe8ef] via-[#ffe5d9] to-[#f0f4ff]">
+        <div className="flex items-center gap-3 text-rose-500">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Đang kiểm tra trạng thái hồ sơ...</span>
+        </div>
+      </div>
+    );
+  }
 
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -292,8 +459,8 @@ export default function CompleteProfile() {
       if (!formData.dob) {
         stepErrors.dob = 'Vui lòng chọn ngày sinh.';
       }
-      if (!formData.location) {
-        stepErrors.location = 'Vui lòng nhập địa điểm sinh sống.';
+      if (!hasGeoLocation) {
+        stepErrors.location = 'Cho phép HUSTLove truy cập vị trí hiện tại để tiếp tục.';
       }
       if (!formData.bio || formData.bio.length < 30) {
         stepErrors.bio = 'Hãy viết ít nhất 30 ký tự để tạo ấn tượng đầu tiên.';
@@ -335,6 +502,9 @@ export default function CompleteProfile() {
     const stepErrors = buildStepErrors(currentStep);
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors);
+      if (stepErrors.location) {
+        setLocationError(stepErrors.location);
+      }
       return;
     }
     setErrors({});
@@ -376,25 +546,112 @@ export default function CompleteProfile() {
     }));
   };
 
-  const handleAddSubject = () => {
-    const value = subjectInput.trim();
-    if (!value) {
+  const handleRequestLocation = () => {
+    if (!isGeolocationSupported) {
+      const message = 'Trình duyệt của bạn không hỗ trợ chia sẻ vị trí.';
+      setLocationError(message);
+      setErrors((prev) => ({ ...prev, location: message }));
       return;
     }
-    setFormData((prev) => {
-      if (prev.studySubjects.includes(value)) {
-        return prev;
+
+    setIsRequestingLocation(true);
+    setLocationError('');
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const latitude = Number(position.coords.latitude.toFixed(6));
+          const longitude = Number(position.coords.longitude.toFixed(6));
+
+          let resolvedLabel = '';
+          try {
+            const response = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=vi`
+            );
+            if (response.ok) {
+              const data = await response.json();
+              const pieces = [
+                data?.locality,
+                data?.city,
+                data?.principalSubdivision,
+                data?.countryName,
+              ].filter(Boolean);
+              resolvedLabel = pieces.length > 0 ? Array.from(new Set(pieces)).join(', ') : '';
+            }
+          } catch (reverseError) {
+            console.warn('Reverse geocoding failed', reverseError);
+          }
+
+          const fallbackLabel = `Vĩ độ ${latitude.toFixed(4)}, Kinh độ ${longitude.toFixed(4)}`;
+
+          setFormData((prev) => ({
+            ...prev,
+            geoLocation: {
+              type: 'Point',
+              coordinates: [longitude, latitude],
+            },
+            location: resolvedLabel || fallbackLabel,
+          }));
+
+          setErrors((prev) => {
+            if (!prev.location) {
+              return prev;
+            }
+            const next = { ...prev };
+            delete next.location;
+            return next;
+          });
+
+          setLocationError('');
+        } catch (error) {
+          console.error('Failed to process location', error);
+          setLocationError('Không thể xử lý vị trí hiện tại. Vui lòng thử lại.');
+        } finally {
+          setIsRequestingLocation(false);
+        }
+      },
+      (error) => {
+        setIsRequestingLocation(false);
+        let message = 'Không thể lấy vị trí. Vui lòng thử lại.';
+        if (error.code === error.PERMISSION_DENIED) {
+          message = 'Bạn cần cho phép truy cập vị trí để hoàn tất hồ sơ.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          message = 'Không thể xác định vị trí hiện tại. Vui lòng thử lại sau.';
+        } else if (error.code === error.TIMEOUT) {
+          message = 'Quá thời gian truy vấn vị trí. Thử lại nhé!';
+        }
+        setLocationError(message);
+        setErrors((prev) => ({ ...prev, location: message }));
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 300000,
+        timeout: 10000,
       }
-      return { ...prev, studySubjects: [...prev.studySubjects, value] };
-    });
-    setSubjectInput('');
+    );
   };
 
-  const handleRemoveSubject = (subject) => {
+  const handleUseMockLocation = () => {
+    const mockLatitude = 21.0049;
+    const mockLongitude = 105.8431;
     setFormData((prev) => ({
       ...prev,
-      studySubjects: prev.studySubjects.filter((item) => item !== subject),
+      geoLocation: {
+        type: 'Point',
+        coordinates: [mockLongitude, mockLatitude],
+      },
+      location: 'Kí túc xá Bách Khoa, Hai Bà Trưng (mô phỏng)',
     }));
+    setIsRequestingLocation(false);
+    setErrors((prev) => {
+      if (!prev.location) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next.location;
+      return next;
+    });
+    setLocationError('');
   };
 
   const handlePhotoSelect = (event) => {
@@ -443,6 +700,9 @@ export default function CompleteProfile() {
 
     if (Object.keys(flatErrors).length > 0) {
       setErrors(flatErrors);
+      if (flatErrors.location) {
+        setLocationError(flatErrors.location);
+      }
       const firstInvalidStep = validations.findIndex((item) => Object.keys(item).length > 0);
       if (firstInvalidStep >= 0) {
         setCurrentStep(firstInvalidStep);
@@ -458,6 +718,18 @@ export default function CompleteProfile() {
     setServerMessage('');
 
     try {
+      const coordinates = coordinatesForDisplay;
+      const normalizedLocationText =
+        formData.location && formData.location !== 'Not updated' ? formData.location : '';
+      const fallbackLocationText = coordinates
+        ? `Vĩ độ ${coordinates.lat.toFixed(4)}, Kinh độ ${coordinates.lng.toFixed(4)}`
+        : '';
+      const locationForSubmit = normalizedLocationText || fallbackLocationText;
+      const sanitizeLocationValue = (value) =>
+        value && value !== 'Not updated' ? value : '';
+      const currentLocation = sanitizeLocationValue(user?.location);
+      const currentHometown = sanitizeLocationValue(user?.hometown);
+
       const payload = {
         userId: user.id || user._id,
         gender: formData.gender,
@@ -465,11 +737,11 @@ export default function CompleteProfile() {
         dob: formData.dob,
         career: formData.career,
         classYear: formData.classYear,
-        location: formData.location,
+        location: locationForSubmit,
+        geoLocation: hasGeoLocation ? formData.geoLocation : undefined,
         bio: formData.bio,
         hobbies: formData.hobbies,
         zodiac: derivedZodiac,
-        studySubjects: formData.studySubjects,
         connectionGoal: formData.connectionGoal,
         academicHighlights: formData.academicHighlights,
         preferences: {
@@ -477,7 +749,6 @@ export default function CompleteProfile() {
           ageRange: formData.preferences.ageRange,
           distance: formData.preferences.distance,
           connectionGoal: formData.connectionGoal,
-          studySubjects: formData.studySubjects,
         },
       };
 
@@ -503,14 +774,23 @@ export default function CompleteProfile() {
         classYear: nextUser.classYear || payload.classYear || user.classYear || '',
         academicHighlights: nextUser.academicHighlights || payload.academicHighlights || '',
         job: nextUser.career || nextUser.job,
-        hometown: nextUser.hometown || nextUser.location,
-        location: nextUser.hometown || nextUser.location,
-        geoLocation: nextUser.geoLocation,
+        hometown:
+          sanitizeLocationValue(nextUser.hometown) ||
+          sanitizeLocationValue(nextUser.location) ||
+          locationForSubmit ||
+          currentHometown ||
+          currentLocation,
+        location:
+          sanitizeLocationValue(nextUser.location) ||
+          locationForSubmit ||
+          currentLocation,
+        geoLocation:
+          nextUser.geoLocation ||
+          payload.geoLocation ||
+          formData.geoLocation ||
+          user.geoLocation,
         zodiac: nextUser.zodiac,
         hobbies: Array.isArray(nextUser.hobbies) ? nextUser.hobbies : payload.hobbies,
-        studySubjects: Array.isArray(nextUser.studySubjects)
-          ? nextUser.studySubjects
-          : payload.studySubjects,
         connectionGoal: nextUser.connectionGoal || payload.connectionGoal || '',
         preferences: {
           ...nextUser.preferences,
@@ -519,11 +799,6 @@ export default function CompleteProfile() {
           distance: nextUser.preferences?.distance || payload.preferences.distance,
           connectionGoal:
             nextUser.preferences?.connectionGoal || payload.preferences.connectionGoal,
-          studySubjects:
-            Array.isArray(nextUser.preferences?.studySubjects) &&
-            nextUser.preferences.studySubjects.length > 0
-              ? nextUser.preferences.studySubjects
-              : payload.preferences.studySubjects,
         },
         lookingFor:
           nextUser.preferences?.lookingFor ||
@@ -632,17 +907,72 @@ export default function CompleteProfile() {
               Nơi sinh sống
               <span className="text-rose-500">*</span>
             </label>
-            <div className="relative">
-              <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-rose-300" />
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(event) => updateField('location', event.target.value)}
-                placeholder="Ví dụ: KTX Bách Khoa, Hai Bà Trưng"
-                className="w-full rounded-2xl border border-rose-100 bg-white px-11 py-3 text-sm text-slate-700 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-4 focus:ring-rose-100"
-              />
+            <div className="rounded-3xl border border-rose-100 bg-white/95 px-6 py-5 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-500">
+                    <MapPin className="h-5 w-5" />
+                  </span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-slate-700">
+                      {hasGeoLocation ? 'Vị trí hiện tại đã được lưu' : 'Chia sẻ vị trí hiện tại'}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {hasGeoLocation
+                        ? locationSummary
+                        : isGeolocationSupported
+                        ? 'Cho phép truy cập vị trí để HUSTLove gợi ý các kết nối gần bạn hơn.'
+                        : 'Trình duyệt của bạn chưa hỗ trợ lấy vị trí tự động. Hãy thử trình duyệt khác nhé.'}
+                    </p>
+                    {hasGeoLocation && locationCoordinateSummary ? (
+                      <p className="text-xs font-mono text-slate-400">
+                        {locationCoordinateSummary}
+                      </p>
+                    ) : null}
+                    {locationError ? (
+                      <p className="text-xs font-semibold text-rose-500">{locationError}</p>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                  <button
+                    type="button"
+                    onClick={handleRequestLocation}
+                    disabled={!isGeolocationSupported || isRequestingLocation}
+                    className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-500 transition hover:border-rose-300 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isRequestingLocation ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Đang lấy vị trí...
+                      </>
+                    ) : isGeolocationSupported ? (
+                      <>
+                        <Compass className="h-4 w-4" />
+                        {hasGeoLocation ? 'Cập nhật lại' : 'Chia sẻ vị trí'}
+                      </>
+                    ) : (
+                      <>
+                        <X className="h-4 w-4" />
+                        Không hỗ trợ
+                      </>
+                    )}
+                  </button>
+                  {isDev ? (
+                    <button
+                      type="button"
+                      onClick={handleUseMockLocation}
+                      className="text-xs font-medium text-slate-400 underline-offset-2 transition hover:text-rose-500 hover:underline"
+                    >
+                      Dùng vị trí mô phỏng
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             </div>
-            {errors.location && <p className="text-sm text-rose-500">{errors.location}</p>}
+            {!hasGeoLocation && errors.location ? (
+              <p className="text-sm text-rose-500">{errors.location}</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -691,10 +1021,14 @@ export default function CompleteProfile() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${
+                      <span className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${
                         isActive ? 'bg-rose-500 text-white' : 'bg-rose-50 text-rose-500'
                       }`}>
-                        {isActive ? <CheckCircle className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                        {isActive ? (
+                          <CheckCircle className="h-[20px] w-[20px]" strokeWidth={2.2} />
+                        ) : (
+                          <Icon className="h-[20px] w-[20px]" strokeWidth={2.2} />
+                        )}
                       </span>
                       <span className="text-sm font-semibold">{option.label}</span>
                     </div>
@@ -755,56 +1089,6 @@ export default function CompleteProfile() {
               </button>
             </div>
             {errors.hobbies && <p className="text-sm text-rose-500">{errors.hobbies}</p>}
-          </div>
-
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              <BookOpen className="h-4 w-4 text-rose-400" />
-              Môn học muốn học cùng
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {formData.studySubjects.map((subject) => (
-                <span
-                  key={subject}
-                  className="group inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-1.5 text-sm font-medium text-teal-600"
-                >
-                  {subject}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSubject(subject)}
-                    className="rounded-full border border-transparent p-1 text-teal-400 transition group-hover:border-teal-200 group-hover:text-teal-600"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-col gap-3 md:flex-row">
-              <div className="relative flex-1">
-                <Tag className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-teal-300" />
-                <input
-                  type="text"
-                  value={subjectInput}
-                  onChange={(event) => setSubjectInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      handleAddSubject();
-                    }
-                  }}
-                  placeholder="Ví dụ: Giải tích, Lập trình C++"
-                  className="w-full rounded-2xl border border-teal-100 bg-white px-11 py-3 text-sm text-slate-700 shadow-sm transition focus:border-teal-300 focus:outline-none focus:ring-4 focus:ring-teal-100"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleAddSubject}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-teal-200 bg-white px-6 py-3 text-sm font-semibold text-teal-500 shadow-sm transition hover:border-teal-300 hover:text-teal-600"
-              >
-                <Plus className="h-4 w-4" />
-                Thêm môn học
-              </button>
-            </div>
           </div>
 
           <div className="space-y-4 rounded-3xl border border-rose-100 bg-rose-50/60 p-6">
@@ -961,30 +1245,6 @@ export default function CompleteProfile() {
             {errors.classYear && <p className="text-sm text-rose-500">{errors.classYear}</p>}
           </div>
         </div>
-
-        <div className="rounded-3xl border border-rose-100 bg-white/85 p-6">
-          <div className="flex items-center gap-2 text-sm font-semibold text-rose-500">
-            <BookOpen className="h-4 w-4" />
-            Môn học bạn đã chọn
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {formData.studySubjects.length > 0 ? (
-              formData.studySubjects.map((subject) => (
-                <span
-                  key={subject}
-                  className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-4 py-1.5 text-sm font-medium text-teal-600"
-                >
-                  {subject}
-                </span>
-              ))
-            ) : (
-              <span className="text-sm text-slate-500">
-                Bạn chưa chọn môn học nào. Thêm ở mục "Sở thích & Mục tiêu" để tìm bạn học phù hợp.
-              </span>
-            )}
-          </div>
-        </div>
-
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
             <Sparkles className="h-4 w-4 text-rose-400" />
@@ -1005,13 +1265,10 @@ export default function CompleteProfile() {
   const completionPercent = Math.round(((currentStep + 1) / steps.length) * 100);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-rose-50 via-white to-rose-100 py-24">
-      <div className="pointer-events-none absolute -left-16 top-32 h-72 w-72 rounded-full bg-rose-200/30 blur-3xl" aria-hidden />
-      <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 rounded-full bg-pink-200/20 blur-3xl" aria-hidden />
-
+    <div className="relative min-h-screen bg-[#fff5f8] py-24">
       <div className="relative mx-auto max-w-6xl px-4">
         <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
-          <aside className="space-y-6 rounded-[32px] border border-rose-100 bg-white/75 p-8 shadow-xl shadow-rose-100/60 backdrop-blur">
+          <aside className="space-y-6 rounded-[28px] border border-rose-100 bg-white p-8 shadow-[0_18px_45px_-32px_rgba(244,114,182,0.4)]">
             <div className="flex items-center gap-3">
               <div className="rounded-full bg-rose-100 p-3 text-rose-500">
                 <Heart className="h-6 w-6" />
@@ -1048,10 +1305,14 @@ export default function CompleteProfile() {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`inline-flex h-10 w-10 items-center justify-center rounded-full ${
+                      <span className={`inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${
                         isCompleted ? 'bg-teal-500 text-white' : 'bg-rose-100 text-rose-500'
                       }`}>
-                        {isCompleted ? <CheckCircle className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                        {isCompleted ? (
+                          <CheckCircle className="h-[20px] w-[20px]" strokeWidth={2.2} />
+                        ) : (
+                          <Icon className="h-[20px] w-[20px]" strokeWidth={2.2} />
+                        )}
                       </span>
                       <div>
                         <p className="text-sm font-semibold">{step.title}</p>
@@ -1081,10 +1342,7 @@ export default function CompleteProfile() {
             </div>
           </aside>
 
-          <main className="relative overflow-hidden rounded-[36px] border border-rose-100 bg-white/90 p-8 shadow-2xl shadow-rose-100/70 md:p-10">
-            <div className="pointer-events-none absolute -right-12 top-10 h-40 w-40 rounded-full bg-pink-100/60 blur-3xl" aria-hidden />
-            <div className="pointer-events-none absolute bottom-0 left-10 h-32 w-32 rounded-full bg-rose-200/40 blur-3xl" aria-hidden />
-
+          <main className="relative overflow-hidden rounded-[32px] border border-rose-100 bg-white p-8 shadow-[0_24px_60px_-40px_rgba(233,114,181,0.45)] md:p-10">
             <header className="relative space-y-6 border-b border-rose-100/80 pb-8">
               <span className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-rose-400">
                 <Sparkles className="h-3 w-3" /> Hoàn thiện hồ sơ
@@ -1112,7 +1370,7 @@ export default function CompleteProfile() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="absolute -bottom-1 -right-1 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-rose-400 to-pink-400 p-2 text-white shadow-lg shadow-rose-200/70"
+                      className="absolute -bottom-1 -right-1 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-rose-400 to-pink-400 p-2 text-white shadow-md shadow-rose-200/60"
                     >
                       <Camera className="h-4 w-4" />
                     </button>
@@ -1141,7 +1399,7 @@ export default function CompleteProfile() {
                   return (
                     <div
                       key={step.id}
-                      className={`rounded-[28px] border border-rose-100 bg-white/85 shadow-sm shadow-rose-100/50 transition ${
+                      className={`rounded-[28px] border border-rose-100 bg-white shadow-sm transition ${
                         isOpen ? 'ring-2 ring-rose-200' : ''
                       }`}
                     >

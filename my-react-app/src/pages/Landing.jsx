@@ -149,19 +149,19 @@ export default function Landing() {
               </p>
             </div>
             <div className="grid gap-8 md:grid-cols-2">
-              {featureGroups.map(({ title, subtitle, accent, Icon, bullets }) => (
+              {featureGroups.map((feature) => (
                 <div
-                  key={title}
+                  key={feature.title}
                   className="group relative overflow-hidden rounded-[2.5rem] border border-rose-100/70 bg-white/80 p-8 shadow-xl shadow-rose-100/60 transition hover:-translate-y-1 hover:shadow-rose-200/70"
                 >
-                  <div className={`absolute -top-10 -right-10 h-32 w-32 rounded-full bg-gradient-to-br ${accent} opacity-60 blur-2xl`} />
+                  <div className={`absolute -top-10 -right-10 h-32 w-32 rounded-full bg-gradient-to-br ${feature.accent} opacity-60 blur-2xl`} />
                   <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-rose-50/90 px-4 py-2 text-rose-600 shadow-sm">
-                    <Icon className="h-5 w-5" />
+                    <feature.Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-xl font-semibold text-slate-900">{title}</h3>
-                  <p className="mt-2 text-sm text-slate-600">{subtitle}</p>
+                  <h3 className="text-xl font-semibold text-slate-900">{feature.title}</h3>
+                  <p className="mt-2 text-sm text-slate-600">{feature.subtitle}</p>
                   <ul className="mt-4 space-y-2 text-sm text-slate-700">
-                    {bullets.map((item) => (
+                    {feature.bullets.map((item) => (
                       <li key={item} className="flex items-start gap-2">
                         <Fingerprint className="mt-0.5 h-4 w-4 text-rose-400" />
                         <span>{item}</span>

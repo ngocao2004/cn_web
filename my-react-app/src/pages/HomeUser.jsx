@@ -7,7 +7,7 @@ import FallingStarCanvas from '../components/FallingStarCanvas';
 
 export default function Home() {
   const [user, setUser] = useState(null);
-  const [stats, setStats] = useState({
+  const [stats] = useState({
     totalUsers: 12458,
     activeNow: 3247,
     matchesToday: 856,
