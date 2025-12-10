@@ -15,56 +15,97 @@ const userSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  
-  // Profile info - CẦN CHO MATCHING
   gender: { 
     type: String, 
-    enum: ['Nam', 'Nữ', 'Khác'], 
-    default: 'Khác'  // Thêm default
+    enum: ['Male', 'Female', 'Other'], 
+    default: 'Other'  // Thêm default
   },
-  lookingFor: { 
-    type: String, 
-    enum: ['Nam', 'Nữ', 'Tất cả'],
-    default: 'Tất cả'
+
+  classYear: {
+    type: String,
+    default: 'Not updated'
   },
-  age: { 
-    type: Number,
-    default: 18  // Thêm default
+
+  preferences: {
+    lookingFor: { 
+      type: String, 
+      enum: ['Male', 'Female', 'All'],
+      default: 'All'
+    },
+    connectionGoal: {
+      type: String,
+      enum: ['study', 'friendship', 'relationship', ''],
+      default: ''
+    },
+    studySubjects: {
+      type: [String],
+      default: []
+    },
+    ageRange: {
+      min: { type: Number, default: 18 },
+      max: { type: Number, default: 99 }
+    },
+    distance: { type: Number, default: 50 } 
+  },
+
+  dob: { 
+    type: Date,
+    default: null
   },
   career: { 
     type: String,
-    default: 'Chưa cập nhật'  // Thêm default
+    default: 'Not updated'  // Thêm default
   },
   hobbies: { 
     type: [String],
     default: []
   },
-  location: { 
+  studySubjects: {
+    type: [String],
+    default: []
+  },
+  academicHighlights: {
     type: String,
-    default: 'Chưa cập nhật'  // Thêm default
+    default: ''
+  },
+  connectionGoal: {
+    type: String,
+    enum: ['study', 'friendship', 'relationship', ''],
+    default: ''
+  },
+  location: {
+    type: String,
+    default: 'Not updated'
+  },
+  geoLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0]
+    } // [longitude, latitude]
+  },
+  hometown: {
+    type: String,
+    default: 'Not updated'
   },
   zodiac: { 
     type: String,
-    default: 'Chưa rõ'  // Thêm default
+    default: 'Unknown'  // Thêm default
   },
-  
-  // Bio
   bio: {
     type: String,
-    default: ''
+    default: 'Not updated'
   },
   
-  // Avatar
-  avatar: {
-    type: String,
-    default: ''
+  photoGallery: {
+    type: [String],
+    default: []
   },
-  
-  // Matching preferences
-  ageRange: {
-    min: { type: Number, default: 18 },
-    max: { type: Number, default: 99 }
-  },
+
   
   // Profile completion status
   profileCompleted: {
@@ -72,12 +113,6 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   
-  // Matching history
-  matches: [{
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    score: { type: Number },
-    matchedAt: { type: Date, default: Date.now }
-  }],
   
   createdAt: { 
     type: Date, 
@@ -86,18 +121,58 @@ const userSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  lastActive: { 
+    type: Date,
+    default: Date.now
   }
 }, {
   timestamps: true  // Tự động tạo createdAt và updatedAt
 });
 
-// Method để check profile đã hoàn thiện chưa
+userSchema.index({ geoLocation: '2dsphere' });
 userSchema.methods.isProfileComplete = function() {
-  return this.gender && 
-         this.age && 
-         this.career !== 'Chưa cập nhật' && 
-         this.location !== 'Chưa cập nhật' && 
-         this.zodiac !== 'Chưa rõ';
+  const hasHobbies = Array.isArray(this.hobbies) && this.hobbies.length > 0;
+  const hasStudySubjects = Array.isArray(this.studySubjects) && this.studySubjects.length > 0;
+  const hasDob = this.dob instanceof Date && !Number.isNaN(this.dob.valueOf());
+  const hometownFilled = typeof this.hometown === 'string' && this.hometown.trim() !== '' && this.hometown !== 'Not updated';
+  const locationFilled = typeof this.location === 'string' && this.location !== 'Not updated';
+  const careerFilled = typeof this.career === 'string' && this.career !== 'Not updated';
+  const classYearFilled = typeof this.classYear === 'string' && this.classYear !== 'Not updated';
+  const bioFilled = typeof this.bio === 'string' && this.bio !== 'Not updated' && this.bio.trim().length > 0;
+  const zodiacFilled = typeof this.zodiac === 'string' && this.zodiac !== 'Unknown';
+  const connectionGoalFilled = typeof this.connectionGoal === 'string' && this.connectionGoal !== '';
+
+  return Boolean(
+    this.gender
+    && hasDob
+    && careerFilled
+    && locationFilled
+    && bioFilled
+    && hasHobbies
+    && hasStudySubjects
+    && typeof this.academicHighlights === 'string' && this.academicHighlights.trim().length > 0
+    && connectionGoalFilled
+    && classYearFilled
+    && hometownFilled
+    && zodiacFilled
+  );
 };
+
+userSchema.virtual('age').get(function() {
+    if (!this.dob) return null;
+    const today = new Date();
+    const birthDate = new Date(this.dob);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age;
+});
+
+// Thiết lập JSON/Object để bao gồm Virtuals
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 export default mongoose.model('User', userSchema);
