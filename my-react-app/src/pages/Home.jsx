@@ -261,9 +261,6 @@ export default function Home() {
                   )}
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
 
               <div className="flex flex-col items-center gap-6">
                 <div className="flex items-center justify-center gap-8">
