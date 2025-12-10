@@ -91,7 +91,7 @@ export default function Register() {
       <Sparkles className="absolute right-16 bottom-24 hidden h-16 w-16 -rotate-12 text-rose-100 lg:block" aria-hidden />
 
       <div className="relative z-10 w-full max-w-xl px-4 md:px-0">
-        <div className="overflow-hidden rounded-[32px] border border-rose-100 bg-white/90 shadow-[0_30px_60px_-30px_rgba(244,114,182,0.45)] backdrop-blur">
+        <div className="overflow-hidden rounded-[32px] border border-rose-100/70 bg-white/90 shadow-xl shadow-rose-200/60 backdrop-blur-sm">
           <div className="space-y-8 px-8 py-10 md:px-12">
             <div className="space-y-3 text-center md:text-left">
               <span className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-4 py-1 text-sm font-semibold text-rose-500">
@@ -130,7 +130,7 @@ export default function Register() {
                     value={form.name}
                     onChange={updateField("name")}
                     required
-                    className="w-full rounded-2xl border border-rose-100 bg-white px-5 py-3 text-base text-slate-800 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-4 focus:ring-rose-100"
+                    className="w-full rounded-2xl border border-rose-100 bg-white px-5 py-3 text-base text-slate-800 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100"
                   />
                 </div>
 
@@ -138,18 +138,18 @@ export default function Register() {
                   <label className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-600">
                     Email HUST
                     <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-teal-500">
-                      @hust.edu.vn
+                      @sis.hust.edu.vn
                     </span>
                   </label>
                   <div className="relative">
                     <Mail className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-rose-300" />
                     <input
                       type="email"
-                      placeholder="nguyen.anh@hust.edu.vn"
+                      placeholder="nguyen.anh@sis.hust.edu.vn"
                       value={form.email}
                       onChange={updateField("email")}
                       required
-                      className="w-full rounded-2xl border border-rose-100 bg-white px-12 py-3 text-base text-slate-800 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-4 focus:ring-rose-100"
+                      className="w-full rounded-2xl border border-rose-100 bg-white px-12 py-3 text-base text-slate-800 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100"
                     />
                   </div>
                 </div>
@@ -165,7 +165,7 @@ export default function Register() {
                       value={form.password}
                       onChange={updateField("password")}
                       required
-                      className="w-full rounded-2xl border border-rose-100 bg-white px-5 py-3 text-base text-slate-800 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-4 focus:ring-rose-100"
+                      className="w-full rounded-2xl border border-rose-100 bg-white px-5 py-3 text-base text-slate-800 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100"
                     />
                   </div>
                   <div className="space-y-2">
@@ -178,7 +178,7 @@ export default function Register() {
                       value={form.confirmPassword}
                       onChange={updateField("confirmPassword")}
                       required
-                      className="w-full rounded-2xl border border-rose-100 bg-white px-5 py-3 text-base text-slate-800 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-4 focus:ring-rose-100"
+                      className="w-full rounded-2xl border border-rose-100 bg-white px-5 py-3 text-base text-slate-800 shadow-sm transition focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100"
                     />
                   </div>
                 </div>

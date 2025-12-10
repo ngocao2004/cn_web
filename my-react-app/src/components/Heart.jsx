@@ -1,20 +1,30 @@
-import {useEffect, useRef } from "react";
-import React from "react";
+import { useEffect, useRef } from "react";
 
-
-export default function Heart(className) {
+export default function Heart({ className }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) {
+      return undefined;
+    }
+
     const ctx = canvas.getContext("2d");
 
     function resizeCanvas() {
-      canvas.width = canvas.parentElement.offsetWidth;;
+      canvas.width = canvas.parentElement.offsetWidth;
       canvas.height = canvas.parentElement.offsetHeight;
     }
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
+
+    const stars = Array.from({ length: 120 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: 0.5 + Math.random() * 1.5,
+      alpha: 0.2 + Math.random() * 0.8,
+      delta: (Math.random() - 0.5) * 0.02
+    }));
 
     // ========================= HEART FUNCTION =========================
     function heartPosition(rad) {
@@ -69,6 +79,8 @@ export default function Heart(className) {
 
     // ========================= ANIMATION LOOP =========================
     let time = 0;
+
+    let animationFrameId;
 
     function animate() {
       
@@ -166,12 +178,17 @@ export default function Heart(className) {
       }
 
       time += 0.04;
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
     }
 
     animate();
 
-    return () => window.removeEventListener("resize", resizeCanvas);
+    return () => {
+      window.removeEventListener("resize", resizeCanvas);
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, []);
 
 

@@ -1,7 +1,6 @@
-import { useEffect, useState, useRef,useContext } from "react";
+import { useEffect, useState, useRef, useContext } from "react";
 import { useNavigate } from 'react-router-dom';
-import io from "socket.io-client";
-import { SocketContext } from "../App.jsx";
+import { SocketContext } from "../contexts";
 
 
 export default function RandomChat() {
@@ -30,6 +29,7 @@ export default function RandomChat() {
   const [roomId, setRoomId] = useState(null);
   const [tempChatId, setTempChatId] = useState(null);
   const [conversationId, setConversationId] = useState(null);
+  const conversationIdRef = useRef(null);
   
   const messagesEndRef = useRef(null);
 
@@ -57,9 +57,6 @@ const navigate = useNavigate();
 
   useEffect(() => {
   if (!newSocket) return;
-
-    // Join conversation room (server listens for 'join_conversations')
-    newSocket.emit("join_conversations", conversationId);
 
   // ===== PARTNER FOUND =====
   newSocket.on("partner_found", (data) => {
@@ -135,9 +132,9 @@ const navigate = useNavigate();
 
   // ===== NEW MESSAGE =====
   newSocket.on("new_message", ({ conversationId: convId, message }) => {
-    // Sử dụng conversationId từ state để lọc message
+    // Sử dụng conversationId hiện tại để lọc message
     setMessages(prev => {
-      if (convId === conversationId) {
+      if (convId === conversationIdRef.current) {
         return [...prev, {
           from: "partner",
           text: message.content,
@@ -168,7 +165,16 @@ const navigate = useNavigate();
     newSocket.off("partner_disconnected");
   };
 
-}, [user, newSocket]); // depend on newSocket so listeners attach after context socket is ready
+}, [newSocket, navigate]); // depend on newSocket so listeners attach after context socket is ready
+
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (!newSocket || !conversationId) return;
+    newSocket.emit("join_conversations", conversationId);
+  }, [newSocket, conversationId]);
 
 
   // ✅ AUTO SCROLL messages

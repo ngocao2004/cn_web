@@ -8,7 +8,7 @@ import Profile from "./pages/Profile";
 import Chat from "./pages/Chat";
 import HomeUser from "./pages/HomeUser";
 import CompleteProfile from "./pages/CompleteProfile";
-import Messenger from './pages/Messenger';
+import Messenger from "./pages/Messenger";
 import { io } from "socket.io-client";
 import { useState, createContext, useEffect } from "react";
 import AIChatPage from './pages/AIChatPage';

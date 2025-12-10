@@ -23,6 +23,8 @@ const httpServer = createServer(app);
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,  // lấy từ biến môi trường
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://localhost:5000"
 ];
 
