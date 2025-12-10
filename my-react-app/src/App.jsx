@@ -29,6 +29,26 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const handleUserChange = () => {
+      const storedUser = sessionStorage.getItem("user");
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (error) {
+          console.error("Lỗi parse user từ sessionStorage:", error);
+          sessionStorage.removeItem("user");
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    window.addEventListener("userChanged", handleUserChange);
+    return () => window.removeEventListener("userChanged", handleUserChange);
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
 
     console.log("🔌 Creating socket for user:", user.id);
@@ -48,21 +68,23 @@ function App() {
   }, [user, API_URL]);
 
   return (
-    <>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/feed" element={<Home />} />
-        <Route path="/home" element={<HomeUser />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/chat" element={<Chat />} />
-        <Route path="/messenger" element={<Messenger />} />
-        <Route path="/complete-profile" element={<CompleteProfile />} />
-        <Route path="/ai-chat" element={<AIChatPage />} />
-      </Routes>
-    </>
+    <UserContext.Provider value={{ user, setUser }}>
+      <SocketContext.Provider value={socket}>
+        <Navbar user={user} socket={socket} />
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/feed" element={<Home />} />
+          <Route path="/home" element={<HomeUser />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/messenger" element={<Messenger />} />
+          <Route path="/complete-profile" element={<CompleteProfile />} />
+          <Route path="/ai-chat" element={<AIChatPage />} />
+        </Routes>
+      </SocketContext.Provider>
+    </UserContext.Provider>
   );
 }
 
