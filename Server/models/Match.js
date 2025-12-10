@@ -4,50 +4,37 @@ const matchSchema = new mongoose.Schema({
   user1Id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    index: true
   },
   user2Id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
+    index: true
   },
 
-   tempChatId: {
+  tempChatId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'TemporaryChat'
   },
-  
-  // Trạng thái like
-  user1Liked: {
-    type: Boolean,
-    default: false
+
+  chatRoomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ChatRoom'
   },
-  user2Liked: {
-    type: Boolean,
-    default: false
-  },
-  
-  // Thời điểm like
-  user1LikedAt: Date,
-  user2LikedAt: Date,
   
   // Status
   status: {
     type: String,
-    enum: ['pending', 'matched', 'expired', 'blocked'],
-    default: 'pending'
+    enum: ['active', 'expired', 'closed'],
+    default: 'active'
   },
   
   // Compatibility score
   compatibilityScore: Number,
   compatibilityBreakdown: Object,
-  
-  // Conversation
-  conversationId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Conversation'
-  },
-  
+    
   // Metadata
   matchedAt: Date, // Khi cả 2 like
   expiresAt: Date, // Hết hạn sau 3 phút
@@ -63,6 +50,7 @@ const matchSchema = new mongoose.Schema({
 // Index để query nhanh
 matchSchema.index({ user1Id: 1, user2Id: 1 });
 matchSchema.index({ status: 1, expiresAt: 1 });
+matchSchema.index({ user1Id: 1,user2Id: 1 }, { unique: true });
 
 // Method: Check if matched
 matchSchema.methods.isMatched = function() {

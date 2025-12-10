@@ -211,6 +211,7 @@ export default function CompleteProfile() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
   const [photoPreview, setPhotoPreview] = useState('');
+  const [isCheckingCompletion, setIsCheckingCompletion] = useState(true);
   const fileInputRef = useRef(null);
   const previewUrlRef = useRef('');
 
@@ -228,29 +229,88 @@ export default function CompleteProfile() {
       navigate('/login');
       return;
     }
+
+    let parsedUser;
     try {
-      const parsed = JSON.parse(stored);
-      setUser(parsed);
-      setFormData((prev) => ({ ...prev, ...hydrateFormFromUser(parsed) }));
-      const initialPreview =
-        parsed.avatar ||
-        (Array.isArray(parsed.photoGallery) && parsed.photoGallery.length > 0
-          ? parsed.photoGallery[0]
-          : '');
-      setPhotoPreview(initialPreview || '');
+      parsedUser = JSON.parse(stored);
     } catch (error) {
       console.error('Failed to parse user session', error);
       navigate('/login');
+      return;
     }
-  }, [navigate]);
 
-  const derivedAge = useMemo(() => getAgeFromDob(formData.dob), [formData.dob]);
-  const derivedZodiac = useMemo(() => {
-    if (formData.zodiac) {
-      return formData.zodiac;
+    if (parsedUser?.isProfileComplete) {
+      setIsCheckingCompletion(false);
+      navigate('/profile', { replace: true });
+      return;
     }
-    return getZodiacFromDob(formData.dob);
-  }, [formData.dob, formData.zodiac]);
+
+    const userId = parsedUser.id || parsedUser._id;
+    if (!userId) {
+      navigate('/login');
+      return;
+    }
+
+    const verifyProfileCompletion = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/auth/profile/${userId}`, {
+          withCredentials: true,
+        });
+        const serverUser = response.data?.user;
+
+        if (serverUser?.isProfileComplete) {
+          sessionStorage.setItem('user', JSON.stringify({ ...parsedUser, ...serverUser }));
+          setIsCheckingCompletion(false);
+          navigate('/profile', { replace: true });
+          return;
+        }
+
+        const mergedUser = serverUser ? { ...parsedUser, ...serverUser } : parsedUser;
+        const hydrated = hydrateFormFromUser(mergedUser);
+        setUser(mergedUser);
+        setFormData((prev) => ({ ...prev, ...hydrated }));
+        const initialPreview =
+          mergedUser.avatar ||
+          (Array.isArray(mergedUser.photoGallery) && mergedUser.photoGallery.length > 0
+            ? mergedUser.photoGallery[0]
+            : '');
+        setPhotoPreview(initialPreview || '');
+      } catch (error) {
+        console.error('Failed to verify profile completion', error);
+        if (parsedUser?.isProfileComplete) {
+          setIsCheckingCompletion(false);
+          navigate('/profile', { replace: true });
+          return;
+        }
+        setUser(parsedUser);
+        setFormData((prev) => ({ ...prev, ...hydrateFormFromUser(parsedUser) }));
+        const fallbackPreview =
+          parsedUser.avatar ||
+          (Array.isArray(parsedUser.photoGallery) && parsedUser.photoGallery.length > 0
+            ? parsedUser.photoGallery[0]
+            : '');
+        setPhotoPreview(fallbackPreview || '');
+      } finally {
+        setIsCheckingCompletion(false);
+      }
+    };
+
+    verifyProfileCompletion();
+  }, [API_URL, navigate]);
+
+  const derivedAge = getAgeFromDob(formData.dob);
+  const derivedZodiac = formData.zodiac || getZodiacFromDob(formData.dob);
+
+  if (isCheckingCompletion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#ffe8ef] via-[#ffe5d9] to-[#f0f4ff]">
+        <div className="flex items-center gap-3 text-rose-500">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Đang kiểm tra trạng thái hồ sơ...</span>
+        </div>
+      </div>
+    );
+  }
 
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

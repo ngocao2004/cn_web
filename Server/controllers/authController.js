@@ -1,294 +1,128 @@
 // controllers/authController.js
-import User from '../models/User.js';
-import bcrypt from 'bcryptjs';
+import httpStatus from 'http-status';
+import catchAsync from '../ultis/CatchAsync.js';
+import { registerUser, loginUser, updateUserProfile, getUserProfile } from '../services/AuthService.js';
 
-// Login
-export const login = async (req, res) => {
-  try {
+
+
+/**
+ * @desc Xử lý logic Đăng ký người dùng
+ * @route POST /v1/auth/register
+ * @access Public
+ */
+export const register = async (req, res) => {
+    try {
+        const { user, tokens } = await registerUser(req.body);
+
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 30 * 24 * 60 * 60 * 1000
+        });
+
+        res.status(httpStatus.CREATED).send({
+            user,
+            accessToken: tokens.accessToken,
+            message: 'Đăng ký thành công!'
+        });
+    } catch (error) {
+        const status = error.statusCode
+            || (error.code === 11000 ? httpStatus.CONFLICT : httpStatus.BAD_REQUEST);
+        const message = error.code === 11000
+            ? 'Email đã được sử dụng.'
+            : error.message || 'Đăng ký thất bại.';
+
+        res.status(status).send({ message });
+    }
+};
+
+/**
+ * @desc Xử lý logic Đăng nhập người dùng
+ * @route POST /v1/auth/login
+ * @access Public
+ */
+
+export const login = catchAsync(async (req, res) => {
     const { email, password } = req.body;
 
-    // Find user
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Email hoặc mật khẩu không đúng'
-      });
-    }
+    // 1. Gọi Service để thực hiện xác thực
+    const { user, tokens } = await loginUser(email, password);
 
-    // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Email hoặc mật khẩu không đúng'
-      });
-    }
-
-    // ✅ CHECK: Profile có đầy đủ thông tin không
-    const isProfileComplete = !!(
-      user.gender && 
-      user.age && 
-      user.career && 
-      user.career !== 'Chưa cập nhật' && 
-      user.location && 
-      user.location !== 'Chưa cập nhật' && 
-      user.zodiac && 
-      user.zodiac !== 'Chưa rõ'
-    );
-
-    // ✅ TRẢ VỀ đúng format mà frontend cần
-    res.json({
-      success: true,
-      message: `Đăng nhập thành công! Chào ${user.name} 💖`,
-      user: {
-        id: user._id.toString(),        // ✅ Thêm field 'id'
-        _id: user._id.toString(),       // ✅ Giữ lại '_id'
-        name: user.name,
-        email: user.email,
-        gender: user.gender || '',
-        age: user.age || null,
-        avatar: user.avatar || '',
-        job: user.career || '',         // ✅ Map 'career' -> 'job'
-        hometown: user.location || '',   // ✅ Map 'location' -> 'hometown'
-        career: user.career || '',      // ✅ Giữ lại 'career'
-        location: user.location || '',  // ✅ Giữ lại 'location'
-        zodiac: user.zodiac || '',
-        hobbies: user.hobbies || [],
-        bio: user.bio || '',
-        lookingFor: user.lookingFor || 'Tất cả',
-        ageRange: user.ageRange || { min: 18, max: 99 },
-        isProfileComplete,              // ✅ Field quan trọng nhất
-        createdAt: user.createdAt
-      }
+    // 2. Thiết lập Refresh Token vào Cookie
+    res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60 * 1000 
     });
 
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
-      error: error.message
+    // 3. Trả về Access Token và thông tin User
+    res.send({ 
+        user, 
+        accessToken: tokens.accessToken 
     });
-  }
-};
+});
 
-// Register
-export const register = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-
-    // Validation
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng điền đầy đủ thông tin'
-      });
-    }
-
-    // Check existing user
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email đã được sử dụng'
-      });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword
-    });
-
-    await user.save();
-
-    // ✅ TRẢ VỀ đúng format
-    res.status(201).json({
-      success: true,
-      message: 'Đăng ký thành công!',
-      user: {
-        id: user._id.toString(),
-        _id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        gender: user.gender || '',
-        age: user.age || null,
-        avatar: user.avatar || '',
-        job: user.career || '',
-        hometown: user.location || '',
-        career: user.career || '',
-        location: user.location || '',
-        zodiac: user.zodiac || '',
-        hobbies: user.hobbies || [],
-        bio: user.bio || '',
-        lookingFor: user.lookingFor || 'Tất cả',
-        ageRange: user.ageRange || { min: 18, max: 99 },
-        isProfileComplete: false,  // ✅ Mới đăng ký = chưa hoàn thiện
-        createdAt: user.createdAt
-      }
-    });
-
-  } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
-      error: error.message
-    });
-  }
-};
-
-
-
-// Update Profile
 export const updateProfile = async (req, res) => {
-  try {
-    // ✅ LẤY userId từ sessionStorage (tạm thời)
-    // Trong production nên dùng JWT token
-    const userId = req.body.userId || req.query.userId;
-    
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Thiếu userId'
-      });
+    try {
+        const { userId, ...profileData } = req.body;
+        if (!userId) {
+            return res.status(httpStatus.BAD_REQUEST).send({ message: 'Thiếu userId.' });
+        }
+
+        const user = await updateUserProfile(userId, profileData);
+
+        res.send({
+            success: true,
+            message: 'Cập nhật profile thành công.',
+            user,
+        });
+    } catch (error) {
+        const status = error.statusCode || httpStatus.BAD_REQUEST;
+        const message = error.message || 'Cập nhật profile thất bại.';
+        res.status(status).send({ message });
     }
-
-    const { 
-      gender, 
-      age, 
-      career, 
-      hobbies, 
-      location, 
-      zodiac,
-      bio,
-      lookingFor,
-      ageRange
-    } = req.body;
-
-    const user = await User.findById(userId);
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User không tồn tại'
-      });
-    }
-
-    // Update fields
-    if (gender) user.gender = gender;
-    if (age) user.age = age;
-    if (career) user.career = career;
-    if (hobbies) user.hobbies = hobbies;
-    if (location) user.location = location;
-    if (zodiac) user.zodiac = zodiac;
-    if (bio !== undefined) user.bio = bio;
-    if (lookingFor) user.lookingFor = lookingFor;
-    if (ageRange) user.ageRange = ageRange;
-
-    await user.save();
-
-    // Check if profile is complete
-    const isProfileComplete = !!(
-      user.gender && 
-      user.age && 
-      user.career && 
-      user.career !== 'Chưa cập nhật' && 
-      user.location && 
-      user.location !== 'Chưa cập nhật' && 
-      user.zodiac && 
-      user.zodiac !== 'Chưa rõ'
-    );
-
-    // ✅ TRẢ VỀ đúng format
-    res.json({
-      success: true,
-      message: 'Cập nhật profile thành công!',
-      user: {
-        id: user._id.toString(),
-        _id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        gender: user.gender || '',
-        age: user.age || null,
-        avatar: user.avatar || '',
-        job: user.career || '',
-        hometown: user.location || '',
-        career: user.career || '',
-        location: user.location || '',
-        zodiac: user.zodiac || '',
-        hobbies: user.hobbies || [],
-        bio: user.bio || '',
-        lookingFor: user.lookingFor || 'Tất cả',
-        ageRange: user.ageRange || { min: 18, max: 99 },
-        isProfileComplete,
-        createdAt: user.createdAt
-      }
-    });
-
-  } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Lỗi server',
-      error: error.message
-    });
-  }
 };
 
+export const getProfile = async (req, res) => {
+    try {
+        const userId = req.params.userId || req.query.userId;
+        if (!userId) {
+            return res.status(httpStatus.BAD_REQUEST).send({ message: 'Thiếu userId.' });
+        }
 
-
-
-// Get user profile
-export const getUserProfile = async (req, res) => {
-  try {
-    const userId = req.params.id;
-    const user = await User.findById(userId).select("-password");
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "Không tìm thấy người dùng"
-      });
+        const user = await getUserProfile(userId);
+        res.send({ user });
+    } catch (error) {
+        const status = error.statusCode || httpStatus.INTERNAL_SERVER_ERROR;
+        const message = error.message || 'Không thể lấy thông tin hồ sơ.';
+        res.status(status).send({ message });
     }
-
-    res.json({
-      success: true,
-      user: {
-        id: user._id.toString(),
-        _id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        gender: user.gender || '',
-        age: user.age || null,
-        avatar: user.avatar || '',
-        job: user.career || '',
-        hometown: user.location || '',
-        career: user.career || '',
-        location: user.location || '',
-        zodiac: user.zodiac || '',
-        hobbies: user.hobbies || [],
-        bio: user.bio || '',
-        lookingFor: user.lookingFor || 'Tất cả',
-        ageRange: user.ageRange || { min: 18, max: 99 },
-        createdAt: user.createdAt
-      }
-    });
-  } catch (error) {
-    console.error("❌ Lỗi khi lấy profile:", error);
-    res.status(500).json({
-      success: false,
-      message: "Lỗi server",
-      error: error.message
-    });
-  }
 };
 
+export const logout = catchAsync(async (req, res) => {
+    // Xóa cookie refreshToken
+    res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+    });
 
+    res.send({ message: 'Đăng xuất thành công!' });
+});
 
+export const refreshToken = catchAsync(async (req, res) => {
+    const { refreshToken } = req.cookies;
+    if (!refreshToken) {
+        return res.status(httpStatus.UNAUTHORIZED).send({ message: 'Không tìm thấy Refresh Token.' });
+    }
 
+    // Xác thực và tạo token mới
+    const tokens = await AuthService.refreshTokens(refreshToken);
+    res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 30 * 24 * 60 * 60 * 1000 
+    });
 
+    res.send({ accessToken: tokens.accessToken });
+}
+);
