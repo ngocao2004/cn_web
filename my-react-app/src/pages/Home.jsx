@@ -88,8 +88,6 @@ export default function Home() {
     return activeProfile.image ? [activeProfile.image] : [];
   }, [activeProfile]);
   const finderName = storedUser?.name || 'Trần Văn Đức Anh';
-  const finderInitial = finderName?.charAt(0) || 'H';
-  const finderClass = storedUser?.classYear || 'K65';
   const finderDistance = storedUser?.preferredDistance || 'Trong 3km';
   const finderAgeRange = storedUser?.preferredAgeRange || '20 - 25 tuổi';
 
@@ -131,7 +129,7 @@ export default function Home() {
     setPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
   };
 
-  const statusText = () => {
+  const statusMessage = useMemo(() => {
     if (!activeProfile) {
       return '🎉 Hết profile rồi! Quay lại sau để gặp thêm người mới nhé ~';
     }
@@ -143,7 +141,7 @@ export default function Home() {
       default:
         return `${matchQueue.length - activeIndex - 1} profile đang đợi bạn khám phá.`;
     }
-  };
+  }, [activeProfile, activeIndex, history, matchQueue.length]);
 
   return (
     <div className="min-h-screen bg-[#fff5f8]">
@@ -157,17 +155,17 @@ export default function Home() {
 
         <div className="mt-12 flex w-full flex-1 flex-col items-center justify-center">
           <div className="flex w-full flex-col items-center gap-10 lg:flex-row lg:items-stretch lg:justify-between">
-            <aside className="hidden w-full max-w-[280px] flex-col gap-6 rounded-[36px] border border-white/40 bg-white/25 p-6 text-sm text-rose-500 shadow-[0_28px_90px_-60px_rgba(188,144,255,0.6)] backdrop-blur-xl lg:flex">
+            <aside className="hidden w-full max-w-[280px] flex-col gap-6 rounded-[28px] border border-rose-100/70 bg-white/80 p-6 text-sm text-rose-500 shadow-[0_18px_40px_-30px_rgba(188,144,255,0.6)] lg:flex">
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400/80">Search metrics</h3>
                 <div className="mt-5 space-y-4">
-                  <div className="flex items-center justify-between rounded-[24px] border border-white/50 bg-white/45 px-4 py-3 text-xs text-slate-600">
+                  <div className="flex items-center justify-between rounded-[20px] border border-rose-100 bg-white px-4 py-3 text-xs text-slate-600">
                     <span className="font-semibold text-rose-500/90">Khoảng cách</span>
-                    <span className="rounded-full bg-white/70 px-3 py-1 font-medium text-teal-500">{finderDistance}</span>
+                    <span className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-500">{finderDistance}</span>
                   </div>
-                  <div className="flex items-center justify-between rounded-[24px] border border-white/50 bg-white/45 px-4 py-3 text-xs text-slate-600">
+                  <div className="flex items-center justify-between rounded-[20px] border border-rose-100 bg-white px-4 py-3 text-xs text-slate-600">
                     <span className="font-semibold text-rose-500/90">Độ tuổi</span>
-                    <span className="rounded-full bg-white/70 px-3 py-1 font-medium text-teal-500">{finderAgeRange}</span>
+                    <span className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-500">{finderAgeRange}</span>
                   </div>
                 </div>
               </div>
@@ -175,20 +173,18 @@ export default function Home() {
 
             <div className="flex w-full max-w-md flex-col items-center gap-10">
               <div className="relative w-full">
-                <div className="absolute -inset-2 rounded-[48px] bg-gradient-to-br from-rose-200/60 via-[#ffd6c7] to-transparent opacity-70 blur-3xl" />
-
-                <div className="relative mx-auto overflow-hidden rounded-[48px] border border-white/50 bg-white/30 shadow-[0_55px_150px_-65px_rgba(233,114,181,0.95)] backdrop-blur-2xl">
+                <div className="relative mx-auto overflow-hidden rounded-[36px] border border-rose-100 bg-white/90 shadow-[0_30px_80px_-60px_rgba(233,114,181,0.65)]">
                   {activeProfile ? (
-                    <article className="relative h-full min-h-[82vh] max-h-[88vh] w-full aspect-[9/16]">
+                    <article className="relative h-full min-h-[78vh] max-h-[84vh] w-full aspect-[9/16]">
                       {photos.length > 0 && (
                         <img
                           src={photos[photoIndex]}
                           alt={activeProfile.name}
+                          loading="lazy"
                           className="absolute inset-0 h-full w-full object-cover"
                         />
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-rose-950/75 via-rose-900/35 to-transparent" />
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.32),_transparent_60%)]" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-rose-950/70 via-rose-900/25 to-transparent" />
 
                       {photos.length > 1 && (
                         <div className="absolute top-6 left-1/2 flex -translate-x-1/2 gap-2">
@@ -208,24 +204,24 @@ export default function Home() {
                           <button
                             onClick={handlePrevPhoto}
                             aria-label="Xem ảnh trước"
-                            className="absolute inset-y-0 left-0 w-1/3 rounded-l-[48px] bg-gradient-to-r from-black/10 to-transparent text-white opacity-0 transition hover:opacity-100"
+                            className="absolute inset-y-0 left-0 w-1/3 rounded-l-[36px] bg-gradient-to-r from-black/10 to-transparent text-white opacity-0 transition hover:opacity-90"
                           />
                           <button
                             onClick={handleNextPhoto}
                             aria-label="Xem ảnh tiếp theo"
-                            className="absolute inset-y-0 right-0 w-1/3 rounded-r-[48px] bg-gradient-to-l from-black/10 to-transparent text-white opacity-0 transition hover:opacity-100"
+                            className="absolute inset-y-0 right-0 w-1/3 rounded-r-[36px] bg-gradient-to-l from-black/10 to-transparent text-white opacity-0 transition hover:opacity-90"
                           />
                         </>
                       )}
 
-                      <div className="absolute inset-x-0 bottom-0 p-7 text-white md:p-9">
-                        <div className="flex flex-wrap items-end gap-3 text-4xl font-semibold tracking-tight md:text-5xl">
+                      <div className="absolute inset-x-0 bottom-0 p-7 text-white md:p-8">
+                        <div className="flex flex-wrap items-end gap-3 text-[2.5rem] font-semibold tracking-tight md:text-[2.8rem]">
                           <h2>{activeProfile.name}</h2>
                           <span className="rounded-full bg-white/15 px-3 py-1 text-lg font-medium">{activeProfile.age}</span>
                         </div>
 
                         <div className="mt-5 flex flex-wrap items-center gap-3 text-sm font-semibold text-teal-100">
-                          <span className="flex items-center gap-2 rounded-full bg-white/12 px-4 py-2 text-teal-100">
+                          <span className="flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 text-teal-100">
                             <GraduationCap className="h-4 w-4 text-teal-100" />
                             {activeProfile.major} · {activeProfile.classYear}
                           </span>
@@ -241,7 +237,7 @@ export default function Home() {
                           {activeProfile.interests.map((interest) => (
                             <span
                               key={interest}
-                              className="flex items-center gap-2 rounded-xl border border-teal-200/70 bg-white/12 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-teal-100/90"
+                              className="flex items-center gap-2 rounded-xl border border-teal-200/70 bg-white/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-teal-100/90"
                             >
                               <Sparkles className="h-3.5 w-3.5" />
                               {interest}
@@ -271,7 +267,7 @@ export default function Home() {
                   <button
                     onClick={() => handleNext('nope')}
                     disabled={!activeProfile}
-                    className="group flex h-16 w-16 items-center justify-center rounded-full bg-white text-rose-300 shadow-[0_20px_45px_-20px_rgba(244,114,182,0.75)] transition hover:scale-105 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="group flex h-16 w-16 items-center justify-center rounded-full bg-white text-rose-300 shadow-[0_12px_30px_-18px_rgba(244,114,182,0.6)] transition hover:scale-105 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                     aria-label="Không phải gu của bạn"
                   >
                     <XIcon className="h-8 w-8 transition group-hover:scale-110" />
@@ -279,7 +275,7 @@ export default function Home() {
                   <button
                     onClick={handleRewind}
                     disabled={history.length === 0}
-                    className="group flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-amber-400 shadow-[0_20px_45px_-25px_rgba(251,191,36,0.7)] transition hover:scale-105 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+                    className="group flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-amber-400 shadow-[0_10px_30px_-18px_rgba(251,191,36,0.5)] transition hover:scale-105 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Quay lại profile trước"
                   >
                     <RotateCcw className="h-6 w-6 transition group-hover:rotate-[-12deg]" />
@@ -287,14 +283,14 @@ export default function Home() {
                   <button
                     onClick={() => handleNext('like')}
                     disabled={!activeProfile}
-                    className="group flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#f7b0d2] via-[#f59fb6] to-[#fdd2b7] text-white shadow-[0_35px_75px_-28px_rgba(244,114,182,0.85)] transition hover:scale-110 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="group flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#f7b0d2] via-[#f59fb6] to-[#fdd2b7] text-white shadow-[0_25px_65px_-30px_rgba(244,114,182,0.75)] transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
                     aria-label="Gửi trái tim"
                   >
                     <Heart className="h-9 w-9 fill-current transition group-hover:scale-110" />
                   </button>
                 </div>
 
-                <p className="text-center text-sm font-medium text-rose-500/90">{statusText()}</p>
+                <p className="text-center text-sm font-medium text-rose-500/90">{statusMessage}</p>
 
                 {history.length > 0 && (
                   <div className="flex flex-wrap justify-center gap-2 text-xs font-semibold text-rose-400/90">
@@ -311,10 +307,10 @@ export default function Home() {
               </div>
             </div>
 
-            <aside className="hidden w-full max-w-[280px] flex-col gap-6 rounded-[36px] border border-white/40 bg-white/25 p-6 text-sm text-rose-500 shadow-[0_28px_90px_-60px_rgba(188,144,255,0.6)] backdrop-blur-xl lg:flex">
+            <aside className="hidden w-full max-w-[280px] flex-col gap-6 rounded-[28px] border border-rose-100/70 bg-white/80 p-6 text-sm text-rose-500 shadow-[0_18px_40px_-30px_rgba(188,144,255,0.6)] lg:flex">
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400/80">HUST community</h3>
-                <div className="mt-4 rounded-[28px] border border-white/45 bg-white/40 p-4">
+                <div className="mt-4 rounded-[24px] border border-rose-100 bg-white p-4">
                   <span className="text-[11px] uppercase tracking-[0.3em] text-rose-300">Upcoming events</span>
                   <p className="mt-2 text-sm font-semibold text-slate-800">Robotics Workshop</p>
                   <p className="text-xs text-slate-500">TQB Library · 08/12 · 18:00</p>
@@ -324,12 +320,12 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-white/45 bg-white/35 p-5">
+              <div className="rounded-[24px] border border-rose-100 bg-white p-5">
                 <h4 className="text-xs font-semibold uppercase tracking-[0.32em] text-rose-400">BK Crush</h4>
                 <p className="mt-3 text-xs leading-relaxed text-slate-600">
                   Khám phá ai đang bí mật crush bạn và gửi lời nhắn dễ thương chỉ trong 1 chạm.
                 </p>
-                <button className="mt-4 w-full rounded-full border border-teal-300/70 bg-teal-100/40 px-4 py-2 text-xs font-semibold text-teal-600 transition hover:bg-teal-100">
+                <button className="mt-4 w-full rounded-full border border-teal-200 bg-teal-50 px-4 py-2 text-xs font-semibold text-teal-600 transition hover:bg-teal-100">
                   Mở BK Crush
                 </button>
               </div>
