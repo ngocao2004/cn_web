@@ -7,11 +7,13 @@ import User from '../models/User.js';
 export const getConversations = async (req, res) => {
   try {
     const { userId } = req.query;
+    const user = await User.findById(userId).select("blockedUsers");
 
     console.log('🔍 Fetching conversations for userId:', userId);
 
     const conversations = await Conversation.find({
       participants: userId,
+       participants: { $nin: user.blockedUsers },
       isActive: true
     })
     .sort({ updatedAt: -1 })
