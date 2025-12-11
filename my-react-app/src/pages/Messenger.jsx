@@ -24,7 +24,13 @@ export default function Messenger() {
   const [showMenu, setShowMenu] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
+  useEffect(() => {
+   if (!socket || !user) return;
 
+    console.log("🔐 Emitting auth_user with:", user.id);
+    socket.emit("auth_user", { userId: user.id });
+    socket.emit("join_conversations", user.id);
+  }, [socket, user]);
 
   // ✅ Load user
   useEffect(() => {
@@ -45,7 +51,7 @@ export default function Messenger() {
   useEffect(() => {
     if (!socket || !user) return;
 
-    socket.emit("join_conversation", user.id);
+    socket.emit("join_conversations", user.id);
 
     socket.on('new_message', ({ conversationId, message }) => {
       console.log('📩 New message received:', { conversationId, message });
@@ -194,6 +200,7 @@ export default function Messenger() {
     socket.emit('send_message', {
       conversationId: selectedConversation._id,
       message: input,
+      senderId: user.id,
       tempId
     });
 
