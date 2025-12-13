@@ -16,6 +16,7 @@ export default function Navbar({ user: controlledUser, socket }) {
     { label: "Match", path: "/chat" },
     { label: "Messages", path: "/messenger" },
     { label: "Study", path: "/home" },
+    { label: "Library", path: "/library-invite" },
   ];
 
   useEffect(() => {

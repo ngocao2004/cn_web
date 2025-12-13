@@ -12,6 +12,7 @@ import matchRoutes from "./routes/matchRoutes.js";  // NEW
 import connectDB from "./config/db.js";
 import matchingService from "./services/MatchingService.js";  // NEW
 import conversationRoutes from './routes/conversationRoutes.js';
+import libraryRoutes from './routes/libraryRoutes.js';
 import { initChatSocket } from './socket/chatSocket.js';
 import postRoutes from './routes/postRoutes.js';
 import { notifRouter } from './routes/notificationRoutes.js';
@@ -99,6 +100,7 @@ connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/match", matchRoutes);  // NEW
 app.use('/api', conversationRoutes);
+app.use('/api/library', libraryRoutes);
 app.use("/api", postRoutes);
 app.use("/api", notifRouter);  
 
