@@ -8,6 +8,7 @@ import Profile from "./pages/Profile";
 import Chat from "./pages/Chat";
 import HomeUser from "./pages/HomeUser";
 import CompleteProfile from "./pages/CompleteProfile";
+import PhotoManagement from "./pages/PhotoManagement";
 import Messenger from "./pages/Messenger";
 import { io } from "socket.io-client";
 import { useState, useEffect } from "react";
@@ -80,10 +81,12 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/manage-photos" element={<PhotoManagement />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/messenger" element={<Messenger />} />
           <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/ai-chat" element={<AIChatPage />} />
+          <Route path="/onboarding/photo-upload" element={<PhotoManagement />} />
         </Routes>
       </SocketContext.Provider>
     </UserContext.Provider>
