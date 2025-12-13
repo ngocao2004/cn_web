@@ -91,6 +91,7 @@ export default function OtherProfileCard({ profile }) {
       return (prev + 1) % photos.length;
     });
   };
+  const isPrimaryPhoto = photoIndex === 0;
 
   const CollapsedCarousel = () => {
     if (photos.length === 0) {
@@ -151,7 +152,9 @@ export default function OtherProfileCard({ profile }) {
           </div>
         )}
 
-        <div className="absolute inset-x-0 bottom-0 z-20 p-8 text-white md:p-8">
+        <div
+          className={`absolute inset-x-0 bottom-0 z-20 p-8 text-white transition-all duration-300 ease-out md:p-8 ${isPrimaryPhoto ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none translate-y-6 opacity-0'}`}
+        >
           <div className="flex flex-wrap items-baseline gap-3 text-[2.4rem] font-semibold tracking-tight leading-[1.05] md:text-[2.7rem]">
             <h2>{profile.name}</h2>
             <div className="flex-shrink-0 -translate-y-1">
@@ -186,7 +189,7 @@ export default function OtherProfileCard({ profile }) {
             )}
           </div>
 
-          {photoIndex === 0 && (
+          {isPrimaryPhoto && (
             <>
               <p className="mt-6 max-w-xl whitespace-pre-line text-base leading-relaxed text-rose-50/95">
                 {summary}
