@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { SocketContext } from '../contexts';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Heart, Smile, Image as ImageIcon, Send, HeartHandshake } from 'lucide-react';
+import { Heart, Smile, Image as ImageIcon, Send, HeartHandshake,MoreHorizontal } from 'lucide-react';
+import toast, { Toaster } from 'react-hot-toast';
+
 
 export default function Messenger() {
   const navigate = useNavigate();
@@ -20,6 +22,11 @@ export default function Messenger() {
   const messagesEndRef = useRef(null);
   const API_URL = import.meta.env.VITE_API_URL;
   const socket = useContext(SocketContext);
+
+  const [showMenu, setShowMenu] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+
 
   // ✅ Load user
   useEffect(() => {
@@ -138,8 +145,16 @@ export default function Messenger() {
     try {
       const res = await axios.get(`${API_URL}/api/conversations?userId=${user.id}`);
 
+
+      await new Promise(resolve => setTimeout(resolve, 300)); 
+      
+
+
+
       if (res.data.success) {
         setConversations(res.data.conversations);
+        console.log("Conversations:", res.data.conversations);
+
 
         if (targetConversationId && !selectedConversation) {
           const conv = res.data.conversations.find(c => c._id === targetConversationId);
@@ -207,6 +222,68 @@ export default function Messenger() {
       }, 1000);
     }
   };
+
+  const handleBlockOrReport = async (type) => {
+    // Lấy ID của người đang xem (đối tác trò chuyện)
+    const targetId = selectedConversation?.partnerId; 
+    const blockerId = user?.id; // ID của người đang đăng nhập
+
+    if (!targetId || !blockerId || actionLoading) {
+        toast.error("Thiếu thông tin người dùng hoặc đang tải.");
+        return;
+    }
+    
+    // 1. Confirmation Modal cho hành động BLOCK
+    if (type === 'block') {
+        const confirmBlock = window.confirm(
+            `Bạn có chắc chắn muốn CHẶN ${selectedConversation.partnerName} không? Cuộc trò chuyện này sẽ bị đóng.`
+        );
+        if (!confirmBlock) {
+            setShowMenu(false);
+            return;
+        }
+    }
+    
+    const endpointPath = type === 'block' ? `block/${targetId}` : `report/${targetId}`;
+    const apiUrl = `${API_URL}/api/users/${endpointPath}`;
+    
+    const requestBody = {
+        blockerId: blockerId,
+        reporterId: blockerId,
+        reason: type === 'report' ? prompt("Lý do báo cáo (Không bắt buộc):") : undefined,
+    };
+
+    setActionLoading(true);
+    setShowMenu(false);
+
+    try {
+        const res = await axios.post(apiUrl, requestBody); // Sử dụng axios đã import
+        
+        // Back-end Controller trả về 200/201 (res.status === 200/201)
+
+        const message = type === 'block' 
+            ? `Đã chặn ${selectedConversation.partnerName}. Cuộc trò chuyện đã bị xóa.` 
+            : `Đã gửi báo cáo về ${selectedConversation.partnerName}.`;
+        
+        toast.success(message); 
+        
+        // ✨ LOGIC SAU BLOCK/REPORT ✨
+        if (type === 'block') {
+            // Xóa cuộc trò chuyện khỏi danh sách và clear cửa sổ chat
+            setConversations(prev => prev.filter(conv => conv._id !== selectedConversation._id));
+            setSelectedConversation(null);
+            setMessages([]);
+        }
+        
+    } catch (error) {
+        console.error("API Error:", error);
+        const errorMessage = error.response?.data?.message || 'Lỗi kết nối Server.';
+        toast.error(`Thao tác thất bại: ${errorMessage}`);
+        
+    } finally {
+        setActionLoading(false);
+    }
+};
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
@@ -327,10 +404,43 @@ export default function Messenger() {
                       {isTyping && <p className="text-[11px] text-rose-400">đang nhập...</p>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-rose-400">
-                    <HeartHandshake className="h-4 w-4" />
-                    <span>Kết nối an toàn</span>
-                  </div>
+                  <div className="flex items-center gap-2">
+    {/* Icon Kết nối an toàn */}
+    <div className="hidden items-center gap-2 text-xs font-semibold text-rose-400 sm:flex">
+        <HeartHandshake className="h-4 w-4" />
+        <span>Kết nối an toàn</span>
+    </div>
+
+    {/* Menu Tùy chọn (Report/Block) */}
+    <div className="relative">
+        <button
+            onClick={() => setShowMenu((s) => !s)}
+            aria-label="More options"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow-sm hover:scale-105"
+        >
+            <MoreHorizontal className="h-5 w-5" />
+        </button>
+
+        {showMenu && (
+            <div className="absolute right-0 top-12 w-40 rounded-lg border border-rose-100 bg-white shadow-lg z-10">
+                <button
+                    onClick={() => handleBlockOrReport('report')}
+                    disabled={actionLoading}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-rose-50 disabled:opacity-60"
+                >
+                    Báo cáo (Report)
+                </button>
+                <button
+                    onClick={() => handleBlockOrReport('block')}
+                    disabled={actionLoading}
+                    className="w-full px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 disabled:opacity-60"
+                >
+                    Chặn (Block)
+                </button>
+            </div>
+        )}
+    </div>
+</div>
                 </header>
 
                 <div className="flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.7),_rgba(255,214,211,0.25)_58%,_transparent)] px-6 py-6">

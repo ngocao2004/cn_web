@@ -1,3 +1,5 @@
+import toast, { Toaster } from 'react-hot-toast';
+import.meta.env.VITE_API_URL;
 import { useEffect, useMemo, useState } from 'react';
 import {
   GraduationCap,
@@ -6,11 +8,12 @@ import {
   RotateCcw,
   Sparkles,
   X as XIcon,
+  MoreHorizontal,
 } from 'lucide-react';
 
 const SAMPLE_PROFILES = [
   {
-    id: '1',
+    id: '69390a27113aa0fdcb2d12ad',
     name: 'Linh Nguyễn',
     age: 21,
     major: 'Thiết kế Đồ họa',
@@ -27,7 +30,7 @@ const SAMPLE_PROFILES = [
     ],
   },
   {
-    id: '2',
+    id: '6938f151789b7cc5a3ed103f',
     name: 'Minh Phương',
     age: 22,
     major: 'Truyền thông',
@@ -61,6 +64,7 @@ const SAMPLE_PROFILES = [
     ],
   },
 ];
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function Home() {
   const storedUser = useMemo(() => {
@@ -76,6 +80,8 @@ export default function Home() {
   const [history, setHistory] = useState([]);
   const [matchQueue] = useState(SAMPLE_PROFILES);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [showMenu, setShowMenu] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const activeProfile = matchQueue[activeIndex];
   const photos = useMemo(() => {
@@ -90,9 +96,9 @@ export default function Home() {
   const finderDistance = storedUser?.preferredDistance || 'Trong 3km';
   const finderAgeRange = storedUser?.preferredAgeRange || '20 - 25 tuổi';
 
-  // ✅ Tạo hiệu ứng số liệu động: dựa trên số thật nhưng thêm random theo thời gian
   useEffect(() => {
     setPhotoIndex(0);
+    setShowMenu(false);
   }, [activeIndex]);
 
   const handleNext = (action) => {
@@ -128,6 +134,82 @@ export default function Home() {
     setPhotoIndex((prev) => (prev - 1 + photos.length) % photos.length);
   };
 
+  const loadNextProfile = () => {
+    if (activeIndex + 1 >= matchQueue.length) {
+      setActiveIndex(matchQueue.length);
+      return;
+    } else {
+      setActiveIndex((prev) => prev + 1);
+    }
+  }
+
+  const handleBlockOrReport = async (type) => {
+    if (!activeProfile || actionLoading) return;
+    const targetId = activeProfile.id; // ID của người bị chặn/báo cáo
+    const blockerId = storedUser?.id; // ID của người đang đăng nhập
+
+    // 1. Kiểm tra ID người dùng
+    if (!blockerId) {
+        toast.error("Vui lòng đăng nhập để thực hiện hành động này.");
+        return;
+    }
+    
+    // 2. Confirmation Modal cho hành động BLOCK
+    if (type === 'block') {
+        const confirmBlock = window.confirm(
+            `Bạn có chắc chắn muốn CHẶN ${activeProfile.name} không? Bạn sẽ không bao giờ thấy hồ sơ này nữa.`
+        );
+        if (!confirmBlock) {
+            setShowMenu(false);
+            return;
+        }
+    }
+    
+    // Thiết lập Endpoint và Data
+    const endpointPath = type === 'block' ? `block/${targetId}` : `report/${targetId}`;
+    const apiUrl = `${API_URL}/api/users/${endpointPath}`;
+    
+    // Controller Back-end sử dụng 'blockerId' hoặc 'reporterId' trong req.body
+    const requestBody = {
+        blockerId: blockerId, // Dùng cho Block
+        reporterId: blockerId, // Dùng cho Report (route: /api/users/:userId/report)
+        reason: type === 'report' ? prompt("Vui lòng cho biết lý do báo cáo (Không bắt buộc):") : undefined,
+    };
+
+    setActionLoading(true);
+    setShowMenu(false);
+
+    try {
+        const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+        });
+
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || 'Yêu cầu thất bại từ Server');
+        }
+
+        // Xử lý thành công
+        const message = type === 'block' ? `Đã chặn ${activeProfile.name} thành công.` : `Đã gửi báo cáo về ${activeProfile.name}.`;
+        
+        // ✨ HIỂN THỊ TOAST ✨
+        toast.success(message); 
+        
+        setHistory((prev) => [{ profile: activeProfile, action: type }, ...prev.slice(0, 4)]);
+        loadNextProfile();
+
+    } catch (error) {
+        console.error("API Error:", error);
+        
+        // 🚨 TOAST LỖI 🚨
+        toast.error(`Thao tác thất bại: ${error.message || 'Lỗi kết nối Server.'}`);
+        
+    } finally {
+        setActionLoading(false);
+    }
+};
   const statusMessage = useMemo(() => {
     if (!activeProfile) {
       return '🎉 Hết profile rồi! Quay lại sau để gặp thêm người mới nhé ~';
@@ -143,6 +225,8 @@ export default function Home() {
   }, [activeProfile, activeIndex, history, matchQueue.length]);
 
   return (
+    <>
+    <Toaster position="top-right" />
     <div className="min-h-screen bg-[#fff5f8]">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center px-4 pt-24 pb-16">
         <div className="flex w-full max-w-md flex-col items-center text-center text-sm text-rose-500/80">
@@ -175,6 +259,37 @@ export default function Home() {
                 <div className="relative mx-auto overflow-hidden rounded-[36px] border border-rose-100 bg-white/90 shadow-[0_30px_80px_-60px_rgba(233,114,181,0.65)]">
                   {activeProfile ? (
                     <article className="relative h-full min-h-[78vh] max-h-[84vh] w-full aspect-[9/16]">
+                      <div className="absolute top-4 right-4 z-30">
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowMenu((s) => !s)}
+                            aria-label="More options"
+                            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow-sm hover:scale-105"
+                          >
+                            <MoreHorizontal className="h-5 w-5" />
+                          </button>
+
+                          {showMenu && (
+                            <div className="absolute right-0 mt-2 w-40 rounded-lg border border-rose-100 bg-white shadow-lg">
+                              <button
+                                onClick={() => handleBlockOrReport('report')}
+                                disabled={actionLoading}
+                                className="w-full px-4 py-2 text-left text-sm hover:bg-rose-50 disabled:opacity-60"
+                              >
+                                Báo cáo (Report)
+                              </button>
+                              <button
+                                onClick={() => handleBlockOrReport('block')}
+                                disabled={actionLoading}
+                                className="w-full px-4 py-2 text-left text-sm text-rose-600 hover:bg-rose-50 disabled:opacity-60"
+                              >
+                                Chặn (Block)
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       {photos.length > 0 && (
                         <img
                           src={photos[photoIndex]}
@@ -298,7 +413,7 @@ export default function Home() {
                         key={`${profile.id}-${action}`}
                         className="rounded-full bg-white/60 px-3 py-1 backdrop-blur-sm"
                       >
-                        {profile.name} · {action === 'like' ? 'đã nhận trái tim' : 'đã lướt qua'}
+                        {profile.name} · {action === 'like' ? 'đã nhận trái tim' : action === 'block' ? 'đã bị chặn' : action === 'report' ? 'đã bị báo cáo' : 'đã lướt qua'}
                       </span>
                     ))}
                   </div>
@@ -332,6 +447,8 @@ export default function Home() {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
+  
   );
 }
