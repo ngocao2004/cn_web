@@ -4,13 +4,15 @@ import { findLoveService } from '../services/findLoveService.js';
 export const getSwipeDeck = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { limit, distance, ageMin, ageMax } = req.query;
+    const { limit, distance, ageMin, ageMax, heightMin, heightMax } = req.query;
 
     const result = await findLoveService.getSwipeDeck(userId, { 
       limit,
       distance: distance ? Number(distance) : undefined,
       ageMin: ageMin ? Number(ageMin) : undefined,
-      ageMax: ageMax ? Number(ageMax) : undefined
+      ageMax: ageMax ? Number(ageMax) : undefined,
+      heightMin: heightMin ? Number(heightMin) : undefined,
+      heightMax: heightMax ? Number(heightMax) : undefined
     });
 
     return res.status(httpStatus.OK).json({

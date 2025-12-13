@@ -230,7 +230,7 @@ const createOrUpdateMatch = async (userId, targetId, compatibility) => {
 export const findLoveService = {
   async getSwipeDeck(userId, options = {}) {
     const limit = Number(options.limit) && Number(options.limit) > 0 ? Math.min(Number(options.limit), 30) : DEFAULT_CARD_LIMIT;
-    const { distance, ageMin, ageMax } = options;
+    const { distance, ageMin, ageMax, heightMin, heightMax } = options;
 
     const userDoc = await ensureUserExists(userId);
     await ensureMatchingReady();
@@ -239,7 +239,7 @@ export const findLoveService = {
     
     // Nếu có filter: chỉ loại những người đã Like, cho phép xem lại người đã X
     // Nếu không có filter: loại tất cả người đã swipe (cả Like và X)
-    const hasFilters = distance !== undefined || ageMin !== undefined || ageMax !== undefined;
+    const hasFilters = distance !== undefined || ageMin !== undefined || ageMax !== undefined || heightMin !== undefined || heightMax !== undefined;
     const swipedIds = hasFilters 
       ? await fetchLikedUserIds(userId)  // Chỉ loại người đã Like
       : await fetchSwipedUserIds(userId); // Loại tất cả đã swipe
@@ -302,19 +302,64 @@ export const findLoveService = {
       .filter(Boolean);
 
     // Apply distance filter if provided
-    if (distance !== undefined && normalizedCurrentUser.geoLocation) {
+    if (distance !== undefined) {
+      if (!normalizedCurrentUser.geoLocation) {
+        console.log(`[Distance Filter] ⚠️ Current user has no geoLocation, skipping distance filter`);
+      } else {
+        console.log(`[Distance Filter] Filtering by distance <= ${distance} km`);
+        normalizedCandidates = normalizedCandidates.filter(candidate => {
+          // Nếu candidate không có location, vẫn giữ lại (không loại bỏ)
+          if (!candidate.geoLocation) {
+            console.log(`[Distance Filter] ${candidate.name}: No geoLocation, keeping`);
+            return true;
+          }
+          
+          const dist = haversineDistanceKm(
+            normalizedCurrentUser.geoLocation,
+            candidate.geoLocation
+          );
+          
+          console.log(`[Distance Filter] ${candidate.name}: distance=${dist} km`);
+          
+          // Chỉ loại bỏ nếu có location VÀ vượt quá khoảng cách
+          if (dist === null) {
+            console.log(`[Distance Filter] ${candidate.name}: dist=null, keeping`);
+            return true;
+          }
+          if (dist <= distance) {
+            console.log(`[Distance Filter] ${candidate.name}: ${dist} <= ${distance}, keeping`);
+            return true;
+          }
+          console.log(`[Distance Filter] ${candidate.name}: ${dist} > ${distance}, REMOVING`);
+          return false;
+        });
+      }
+    }
+
+    // Apply height filter if provided
+    if (heightMin !== undefined || heightMax !== undefined) {
+      console.log(`[Height Filter] heightMin=${heightMin}, heightMax=${heightMax}`);
       normalizedCandidates = normalizedCandidates.filter(candidate => {
-        // Nếu candidate không có location, vẫn giữ lại (không loại bỏ)
-        if (!candidate.geoLocation) return true;
+        const h = candidate.height;
+        console.log(`[Height Filter] Candidate ${candidate.name}: height=${h}, type=${typeof h}`);
         
-        const dist = haversineDistanceKm(
-          normalizedCurrentUser.geoLocation,
-          candidate.geoLocation
-        );
+        // Nếu candidate không có chiều cao, vẫn giữ lại (không loại bỏ)
+        if (h === null || h === undefined) {
+          console.log(`[Height Filter] ${candidate.name}: No height, keeping`);
+          return true;
+        }
         
-        // Chỉ loại bỏ nếu có location VÀ vượt quá khoảng cách
-        if (dist === null) return true;
-        return dist <= distance;
+        // Chỉ loại bỏ nếu có chiều cao VÀ ngoài khoảng cho phép
+        if (heightMin !== undefined && h < heightMin) {
+          console.log(`[Height Filter] ${candidate.name}: ${h} < ${heightMin}, REMOVING`);
+          return false;
+        }
+        if (heightMax !== undefined && h > heightMax) {
+          console.log(`[Height Filter] ${candidate.name}: ${h} > ${heightMax}, REMOVING`);
+          return false;
+        }
+        console.log(`[Height Filter] ${candidate.name}: ${h} in range, keeping`);
+        return true;
       });
     }
 

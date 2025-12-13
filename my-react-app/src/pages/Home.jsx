@@ -29,10 +29,13 @@ export default function Home() {
   const [editingMetrics, setEditingMetrics] = useState({
     distance: 3,
     ageMin: 20,
-    ageMax: 25
+    ageMax: 25,
+    heightMin: 150,
+    heightMax: 190
   });
   const [isEditingDistance, setIsEditingDistance] = useState(false);
   const [isEditingAge, setIsEditingAge] = useState(false);
+  const [isEditingHeight, setIsEditingHeight] = useState(false);
 
   const activeProfile = matchQueue[activeIndex];
   
@@ -60,6 +63,15 @@ export default function Home() {
     return '20 - 25 tuổi';
   }, [appliedFilters.ageRange, storedUser?.preferredAgeRange, storedUser?.preferences?.ageRange]);
 
+  const finderHeightRange = useMemo(() => {
+    if (appliedFilters.heightRange?.min || appliedFilters.heightRange?.max) {
+      const min = appliedFilters.heightRange.min || 140;
+      const max = appliedFilters.heightRange.max || 200;
+      return `${min} - ${max} cm`;
+    }
+    return '150 - 190 cm';
+  }, [appliedFilters.heightRange]);
+
   const fetchDeck = useCallback(async (filters = {}) => {
     if (!API_URL || !userId) return;
 
@@ -72,6 +84,8 @@ export default function Home() {
       if (filters.distance) params.append('distance', filters.distance);
       if (filters.ageRange?.min) params.append('ageMin', filters.ageRange.min);
       if (filters.ageRange?.max) params.append('ageMax', filters.ageRange.max);
+      if (filters.heightRange?.min) params.append('heightMin', filters.heightRange.min);
+      if (filters.heightRange?.max) params.append('heightMax', filters.heightRange.max);
 
       const url = `${API_URL}/api/findlove/${userId}/deck${params.toString() ? `?${params.toString()}` : ''}`;
 
@@ -181,11 +195,16 @@ export default function Home() {
       ageRange: {
         min: editingMetrics.ageMin,
         max: editingMetrics.ageMax
+      },
+      heightRange: {
+        min: editingMetrics.heightMin,
+        max: editingMetrics.heightMax
       }
     };
     setAppliedFilters(filters);
     setIsEditingDistance(false);
     setIsEditingAge(false);
+    setIsEditingHeight(false);
     fetchDeck(filters);
   }, [editingMetrics, fetchDeck]);
 
@@ -322,8 +341,46 @@ export default function Home() {
                     )}
                   </div>
 
+                  {/* Chiều cao - Inline editing */}
+                  <div className="rounded-[20px] border border-rose-100 bg-white px-4 py-3 text-xs">
+                    {isEditingHeight ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-rose-500/90 mb-1">Chiều cao min: {editingMetrics.heightMin} cm</label>
+                          <input
+                            type="range"
+                            min="140"
+                            max="200"
+                            value={editingMetrics.heightMin}
+                            onChange={(e) => setEditingMetrics(prev => ({ ...prev, heightMin: Number(e.target.value) }))}
+                            className="w-full accent-rose-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-rose-500/90 mb-1">Chiều cao max: {editingMetrics.heightMax} cm</label>
+                          <input
+                            type="range"
+                            min="140"
+                            max="200"
+                            value={editingMetrics.heightMax}
+                            onChange={(e) => setEditingMetrics(prev => ({ ...prev, heightMax: Number(e.target.value) }))}
+                            className="w-full accent-rose-500"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setIsEditingHeight(true)}
+                        className="flex w-full items-center justify-between text-slate-600 hover:text-rose-500"
+                      >
+                        <span className="font-semibold text-rose-500/90">Chiều cao</span>
+                        <span className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-500">{finderHeightRange}</span>
+                      </button>
+                    )}
+                  </div>
+
                   {/* Nút áp dụng bộ lọc */}
-                  {(isEditingDistance || isEditingAge) && (
+                  {(isEditingDistance || isEditingAge || isEditingHeight) && (
                     <button
                       onClick={handleApplyMetrics}
                       className="w-full rounded-full bg-rose-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-600"
@@ -378,14 +435,6 @@ export default function Home() {
                     aria-label="Không phải gu của bạn"
                   >
                     <XIcon className="h-8 w-8 transition group-hover:scale-110" />
-                  </button>
-                  <button
-                    onClick={() => handleOpeningMove('Chào bạn! Mình thấy profile của bạn rất thú vị 😊')}
-                    disabled={!activeProfile || isProcessingAction || isLoadingDeck}
-                    className="group flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 text-white shadow-[0_10px_30px_-18px_rgba(59,130,246,0.6)] transition hover:scale-105 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Gửi tin nhắn mở đầu"
-                  >
-                    <MessageCircle className="h-6 w-6 transition group-hover:scale-110" />
                   </button>
                   <button
                     onClick={handleRewind}
