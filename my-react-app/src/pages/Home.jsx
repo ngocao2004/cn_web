@@ -1,69 +1,9 @@
 import toast, { Toaster } from 'react-hot-toast';
 import.meta.env.VITE_API_URL;
 import { useEffect, useMemo, useState } from 'react';
-import {
-  GraduationCap,
-  Heart,
-  MapPin,
-  RotateCcw,
-  Sparkles,
-  X as XIcon,
-  MoreHorizontal,
-} from 'lucide-react';
+import { Heart, RotateCcw, X as XIcon } from 'lucide-react';
+import OtherProfileCard from '../components/OtherProfileCard';
 
-const SAMPLE_PROFILES = [
-  {
-    id: '69390a27113aa0fdcb2d12ad',
-    name: 'Linh Nguyễn',
-    age: 21,
-    major: 'Thiết kế Đồ họa',
-    classYear: 'K65',
-    distance: '750m',
-    location: 'Ký túc xá A',
-    bio: 'Tin vào những điều ngọt ngào, cà phê latte và những chiều mưa Hà Nội. Thích vẽ ký họa và đang học làm bánh macaron.',
-    interests: ['Vẽ minh họa', 'Acoustic', 'Trà hoa', 'Đi dạo hồ Tây'],
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1558600874-0ef3d7c8e59f?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
-    ],
-  },
-  {
-    id: '6938f151789b7cc5a3ed103f',
-    name: 'Minh Phương',
-    age: 22,
-    major: 'Truyền thông',
-    classYear: 'K64',
-    distance: '1.1km',
-    location: 'Phố Chùa Láng',
-    bio: 'Trưởng nhóm CLB nhiếp ảnh, luôn săn tìm những khoảnh khắc lấp lánh. Thích nói chuyện đêm khuya và đọc Haruki Murakami.',
-    interests: ['Chụp ảnh film', 'Du lịch', 'Podcast', 'Yoga nhẹ nhàng'],
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
-    ],
-  },
-  {
-    id: '3',
-    name: 'Bảo Anh',
-    age: 20,
-    major: 'Công nghệ Thông tin',
-    classYear: 'K66',
-    distance: '500m',
-    location: 'Giảng đường B',
-    bio: 'Coder thích nghe nhạc city pop và pha cold brew. Đang xây một app học nhóm cho khoa và mong tìm người đồng hành.',
-    interests: ['Chạy bộ', 'City pop', 'Startup idea', 'Cafe tour'],
-    image: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
-    images: [
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=900&q=80',
-    ],
-  },
-];
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function Home() {
@@ -76,42 +16,142 @@ export default function Home() {
     }
   }, []);
 
+  const userId = storedUser?.id || storedUser?._id;
+  const [matchQueue, setMatchQueue] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [history, setHistory] = useState([]);
   const [matchQueue] = useState(SAMPLE_PROFILES);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isLoadingDeck, setIsLoadingDeck] = useState(Boolean(API_URL && userId));
+  const [deckError, setDeckError] = useState('');
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   const activeProfile = matchQueue[activeIndex];
-  const photos = useMemo(() => {
-    if (!activeProfile) {
-      return [];
+  const finderDistance = storedUser?.preferences?.distance || storedUser?.preferredDistance || 'Trong 3km';
+  const finderAgeRange = useMemo(() => {
+    const preferred = storedUser?.preferredAgeRange;
+    const agePreference = storedUser?.preferences?.ageRange;
+    if (preferred) return preferred;
+    if (agePreference && (Number.isFinite(agePreference.min) || Number.isFinite(agePreference.max))) {
+      const min = Number.isFinite(agePreference.min) ? agePreference.min : '?';
+      const max = Number.isFinite(agePreference.max) ? agePreference.max : '?';
+      return `${min} - ${max} tuổi`;
     }
-    if (Array.isArray(activeProfile.images) && activeProfile.images.length > 0) {
-      return activeProfile.images;
-    }
-    return activeProfile.image ? [activeProfile.image] : [];
-  }, [activeProfile]);
-  const finderDistance = storedUser?.preferredDistance || 'Trong 3km';
-  const finderAgeRange = storedUser?.preferredAgeRange || '20 - 25 tuổi';
+    return '20 - 25 tuổi';
+  }, [storedUser?.preferredAgeRange, storedUser?.preferences?.ageRange]);
 
   useEffect(() => {
     setPhotoIndex(0);
     setShowMenu(false);
   }, [activeIndex]);
-
-  const handleNext = (action) => {
-    if (!activeProfile) return;
-
-    setHistory((prev) => [{ profile: activeProfile, action }, ...prev.slice(0, 4)]);
-
-    if (activeIndex + 1 >= matchQueue.length) {
-      setActiveIndex(matchQueue.length);
+    if (!API_URL || !userId) {
       return;
     }
 
-    setActiveIndex((prev) => prev + 1);
+    const controller = new AbortController();
+
+    const fetchDeck = async () => {
+      setIsLoadingDeck(true);
+      setDeckError('');
+      setActionError('');
+
+      try {
+        const response = await fetch(`${API_URL}/api/findlove/${userId}/deck`, {
+          method: 'GET',
+          credentials: 'include',
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          const message = payload?.message || 'Không thể tải dữ liệu tìm kiếm.';
+          throw new Error(message);
+        }
+
+        const payload = await response.json();
+        const deck = Array.isArray(payload?.data) ? payload.data : [];
+
+        setMatchQueue(deck);
+        setActiveIndex(0);
+        setHistory([]);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error('Fetch swipe deck failed:', error);
+        setDeckError(error.message || 'Không thể tải dữ liệu tìm kiếm.');
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingDeck(false);
+        }
+      }
+    };
+
+    fetchDeck();
+
+    return () => {
+      controller.abort();
+    };
+  }, [API_URL, userId]);
+
+  useEffect(() => {
+    if (API_URL) {
+      return;
+    }
+    setDeckError('Thiếu cấu hình API. Vui lòng kiểm tra VITE_API_URL.');
+    setIsLoadingDeck(false);
+  }, [API_URL]);
+
+  useEffect(() => {
+    if (!API_URL || userId) {
+      return;
+    }
+    setDeckError('Không tìm thấy thông tin người dùng. Hãy đăng nhập lại để tiếp tục.');
+    setIsLoadingDeck(false);
+  }, [API_URL, userId]);
+
+  const submitSwipe = async (targetId, action) => {
+    if (!API_URL || !userId) return;
+
+    const response = await fetch(`${API_URL}/api/findlove/${userId}/swipe`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ targetId, action }),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      const message = payload?.message || 'Không thể lưu hành động swiping.';
+      throw new Error(message);
+    }
+  };
+
+  const handleNext = async (action) => {
+    if (!activeProfile || isProcessingAction) return;
+
+    setActionError('');
+
+    try {
+      setIsProcessingAction(true);
+      await submitSwipe(activeProfile.id, action);
+      setHistory((prev) => [{ profile: activeProfile, action }, ...prev.slice(0, 4)]);
+
+      if (activeIndex + 1 >= matchQueue.length) {
+        setActiveIndex(matchQueue.length);
+        return;
+      }
+
+      setActiveIndex((prev) => prev + 1);
+    } catch (error) {
+      console.error('Submit swipe failed:', error);
+      setActionError(error.message || 'Không thể lưu hành động swiping.');
+    } finally {
+      setIsProcessingAction(false);
+    }
   };
 
   const handleRewind = () => {
@@ -121,6 +161,7 @@ export default function Home() {
     if (previousIndex >= 0) {
       setActiveIndex(previousIndex);
       setHistory(rest);
+      setActionError('');
     }
   };
 
@@ -211,6 +252,21 @@ export default function Home() {
     }
 };
   const statusMessage = useMemo(() => {
+    if (!API_URL) {
+      return 'Thiếu cấu hình API. Vui lòng kiểm tra VITE_API_URL.';
+    }
+    if (!userId) {
+      return 'Không tìm thấy thông tin người dùng. Hãy đăng nhập lại để tiếp tục.';
+    }
+    if (isLoadingDeck) {
+      return 'Đang tải danh sách tương hợp cho bạn...';
+    }
+    if (deckError) {
+      return deckError;
+    }
+    if (actionError) {
+      return actionError;
+    }
     if (!activeProfile) {
       return '🎉 Hết profile rồi! Quay lại sau để gặp thêm người mới nhé ~';
     }
@@ -220,9 +276,9 @@ export default function Home() {
       case 'nope':
         return 'Không sao cả, người dành cho bạn đang ở rất gần thôi.';
       default:
-        return `${matchQueue.length - activeIndex - 1} profile đang đợi bạn khám phá.`;
+        return `${Math.max(0, matchQueue.length - activeIndex - 1)} profile đang đợi bạn khám phá.`;
     }
-  }, [activeProfile, activeIndex, history, matchQueue.length]);
+  }, [API_URL, actionError, activeProfile, activeIndex, deckError, history, isLoadingDeck, matchQueue.length, userId]);
 
   return (
     <>
@@ -372,15 +428,33 @@ export default function Home() {
                         </p>
                       </div>
                     </div>
-                  )}
-                </div>
+                    <div className="max-w-md text-rose-500">
+                      <h3 className="text-2xl font-semibold">Không thể tải profile ✨</h3>
+                      <p className="mt-3 text-sm leading-relaxed text-rose-400">{deckError}</p>
+                    </div>
+                  </div>
+                ) : activeProfile ? (
+                  <OtherProfileCard profile={activeProfile} />
+                ) : (
+                  <div className="flex h-[82vh] flex-col items-center justify-center gap-5 rounded-[36px] border border-rose-100 bg-white/90 p-10 text-center shadow-[0_30px_80px_-60px_rgba(233,114,181,0.65)]">
+                    <div className="rounded-full bg-white/60 p-6 text-rose-400 shadow-inner">
+                      <Heart className="h-12 w-12" />
+                    </div>
+                    <div className="max-w-md text-rose-500">
+                      <h3 className="text-2xl font-semibold">Bạn đã khám phá tất cả hôm nay rồi ✨</h3>
+                      <p className="mt-3 text-sm leading-relaxed text-rose-400">
+                        Hãy quay lại vào lúc khác để gặp thêm những tâm hồn đẹp nhé!
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col items-center gap-6">
                 <div className="flex items-center justify-center gap-8">
                   <button
                     onClick={() => handleNext('nope')}
-                    disabled={!activeProfile}
+                    disabled={!activeProfile || isProcessingAction || isLoadingDeck}
                     className="group flex h-16 w-16 items-center justify-center rounded-full bg-white text-rose-300 shadow-[0_12px_30px_-18px_rgba(244,114,182,0.6)] transition hover:scale-105 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                     aria-label="Không phải gu của bạn"
                   >
@@ -396,7 +470,7 @@ export default function Home() {
                   </button>
                   <button
                     onClick={() => handleNext('like')}
-                    disabled={!activeProfile}
+                    disabled={!activeProfile || isProcessingAction || isLoadingDeck}
                     className="group flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#f7b0d2] via-[#f59fb6] to-[#fdd2b7] text-white shadow-[0_25px_65px_-30px_rgba(244,114,182,0.75)] transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
                     aria-label="Gửi trái tim"
                   >

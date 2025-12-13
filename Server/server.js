@@ -16,6 +16,7 @@ import { initChatSocket } from './socket/chatSocket.js';
 import postRoutes from './routes/postRoutes.js';
 import { notifRouter } from './routes/notificationRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import findLoveRoutes from './routes/findLoveRoutes.js';
 
 dotenv.config();
 
@@ -79,6 +80,7 @@ const __dirname = path.dirname(__filename);
 app.use("/api/auth", authRoutes);
 app.use('/api/users', userRoutes);
 app.use("/api/match", matchRoutes);  // NEW
+app.use('/api/findlove', findLoveRoutes);
 app.use('/api', conversationRoutes);
 app.use("/api", postRoutes);
 app.use("/api", notifRouter);  
@@ -104,7 +106,6 @@ connectDB();
     console.error('❌ Failed to initialize Matching Service:', error);
   }
 })();
-
 
 
 // Socket.IO logic

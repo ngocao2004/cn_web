@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema({
     },
     ageRange: {
       min: { type: Number, default: 18 },
-      max: { type: Number, default: 99 }
+      max: { type: Number, default: 26 }
     },
     distance: { type: Number, default: 50 } 
   },
@@ -99,6 +99,11 @@ const userSchema = new mongoose.Schema({
   bio: {
     type: String,
     default: 'Not updated'
+  },
+
+  height: {
+    type: Number,
+    default: 0
   },
 
   avatar: {
@@ -161,6 +166,8 @@ userSchema.methods.isProfileComplete = function() {
   const hasGallery = Array.isArray(this.photoGallery)
     && this.photoGallery.some((url) => normalizeString(url).length > 0);
   const hasVisualIdentity = hasAvatar || hasGallery || normalizeString(this.name).length > 0;
+  const heightValue = typeof this.height === 'number' ? this.height : Number(this.height);
+  const hasHeight = Number.isFinite(heightValue) && heightValue >= 120 && heightValue <= 220;
 
   const hasLocation = hometownFilled || locationFilled;
   return Boolean(
@@ -168,6 +175,7 @@ userSchema.methods.isProfileComplete = function() {
     && hasDob
     && hasLocation
     && connectionGoalFilled
+    && hasHeight
     && hasVisualIdentity
     && careerFilled
     && classYearFilled
@@ -191,6 +199,7 @@ userSchema.virtual('age').get(function() {
     }
     return age;
 });
+
 
 // Thiết lập JSON/Object để bao gồm Virtuals
 userSchema.set('toJSON', { virtuals: true });
