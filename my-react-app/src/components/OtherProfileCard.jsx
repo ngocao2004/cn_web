@@ -191,7 +191,7 @@ export default function OtherProfileCard({ profile }) {
 
           {isPrimaryPhoto && (
             <>
-              <p className="mt-6 max-w-xl whitespace-pre-line text-base leading-relaxed text-rose-50/95">
+              <p className="mt-6 max-w-xl whitespace-pre-line break-words text-base leading-relaxed text-rose-50/95">
                 {summary}
               </p>
               <button
@@ -256,7 +256,7 @@ export default function OtherProfileCard({ profile }) {
 
               <section>
                 <h4 className="text-xs font-semibold uppercase tracking-[0.32em] text-rose-400">Bio đầy đủ</h4>
-                <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-slate-700">{fullBio}</p>
+                <p className="mt-3 whitespace-pre-line break-words text-sm leading-relaxed text-slate-700">{fullBio}</p>
               </section>
 
               <section>
