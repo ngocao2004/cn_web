@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Chat from "./pages/Chat";
+import Community from "./pages/Community";
 import HomeUser from "./pages/HomeUser";
 import CompleteProfile from "./pages/CompleteProfile";
 import PhotoManagement from "./pages/PhotoManagement";
@@ -87,6 +88,7 @@ function App() {
           <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/ai-chat" element={<AIChatPage />} />
           <Route path="/onboarding/photo-upload" element={<PhotoManagement />} />
+          <Route path="/community" element={<Community />} />
         </Routes>
       </SocketContext.Provider>
     </UserContext.Provider>

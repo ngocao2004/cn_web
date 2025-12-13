@@ -30,6 +30,11 @@ router.post('/posts', async (req, res) => {
     // Populate user info
     await post.populate('userId', 'name avatar');
 
+    // Emit socket event for real-time
+    if (req.io) {
+      req.io.emit('post:new', post);
+    }
+
     res.status(201).json({
       success: true,
       post
@@ -145,8 +150,19 @@ router.post('/posts/:postId/like', async (req, res) => {
     const result = await post.toggleLike(userId);
     await post.save();
 
+    // Emit socket event for real-time like update
+    if (req.io) {
+      req.io.emit('post:like', {
+        postId,
+        userId,
+        action: result.action,
+        likeCount: result.likeCount
+      });
+    }
+
     // Create notification if liked
     if (result.action === 'like') {
+      const user = await User.findById(userId);
       await createNotification({
         recipientId: post.userId,
         senderId: userId,
@@ -154,6 +170,19 @@ router.post('/posts/:postId/like', async (req, res) => {
         postId: post._id,
         content: 'đã thích bài viết của bạn'
       });
+
+      // Emit notification socket event only to post owner
+      if (req.emitNotification && post.userId.toString() !== userId) {
+        req.emitNotification(post.userId.toString(), {
+          type: 'like',
+          recipientId: post.userId,
+          senderId: userId,
+          senderName: user?.name || 'Ai đó',
+          postId,
+          content: `đã thích bài viết của bạn`,
+          timestamp: new Date()
+        });
+      }
     }
 
     res.json({
@@ -300,10 +329,24 @@ router.post('/posts/:postId/comments', async (req, res) => {
     await comment.populate('userId', 'name avatar');
 
     // Update comment count
-    post.commentCount += 1;
-    await post.save();
+    if (!parentCommentId) {
+      post.commentCount += 1;
+      await post.save();
+    }
+
+    // Emit socket event for real-time comment update
+    if (req.io) {
+      req.io.emit('post:comment', {
+        postId,
+        comment,
+        userId,
+        senderName: comment.userId?.name || 'Ai đó',
+        postOwnerId: post.userId
+      });
+    }
 
     // Create notification
+    const user = await User.findById(userId);
     if (parentCommentId) {
       // Reply to comment
       const parentComment = await Comment.findById(parentCommentId);
@@ -316,6 +359,19 @@ router.post('/posts/:postId/comments', async (req, res) => {
           commentId: comment._id,
           content: 'đã trả lời bình luận của bạn'
         });
+
+        // Emit notification socket event only to reply target
+        if (req.emitNotification && parentComment.userId.toString() !== userId) {
+          req.emitNotification(parentComment.userId.toString(), {
+            type: 'reply',
+            recipientId: parentComment.userId,
+            senderId: userId,
+            senderName: user?.name || 'Ai đó',
+            postId,
+            content: `đã trả lời bình luận của bạn`,
+            timestamp: new Date()
+          });
+        }
       }
     } else {
       // Comment on post
@@ -327,6 +383,19 @@ router.post('/posts/:postId/comments', async (req, res) => {
         commentId: comment._id,
         content: 'đã bình luận về bài viết của bạn'
       });
+
+      // Emit notification socket event only to post owner
+      if (req.emitNotification && post.userId.toString() !== userId) {
+        req.emitNotification(post.userId.toString(), {
+          type: 'comment',
+          recipientId: post.userId,
+          senderId: userId,
+          senderName: user?.name || 'Ai đó',
+          postId,
+          content: `đã bình luận về bài viết của bạn`,
+          timestamp: new Date()
+        });
+      }
     }
 
     res.status(201).json({
@@ -372,10 +441,11 @@ router.delete('/comments/:commentId', async (req, res) => {
     await comment.save();
 
     // Update post comment count
-    await Post.findByIdAndUpdate(comment.postId, {
-      $inc: { commentCount: -1 }
-    });
-
+    if (!comment.parentCommentId) {
+      await Post.findByIdAndUpdate(comment.postId, {
+        $inc: { commentCount: -1 }
+      });
+    }
     res.json({
       success: true,
       message: 'Comment deleted successfully'
