@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, useContext, useCallback } from 'react';
 import { SocketContext } from '../contexts';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Heart, Smile, Image as ImageIcon, Send, HeartHandshake } from 'lucide-react';
 
 export default function Messenger() {
   const navigate = useNavigate();
   const location = useLocation();
-  const targetConversationId = location.state?.conversationId;
+  const params = useParams();
+  // Support conversation id coming from either location.state or URL param
+  const targetConversationId = location.state?.conversationId || params.id;
   const [user, setUser] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -96,7 +98,40 @@ export default function Messenger() {
     };
   }, [user, socket]); 
 
+  // ✅ Select conversation
+  const handleSelectConversation = useCallback(async (conv) => {
+    console.log('📂 Selecting conversation:', conv._id);
+    setSelectedConversation(conv);
+    
+    try {
+      const res = await axios.get(`${API_URL}/api/messages/${conv._id}`);
+      
+      if (res.data.success) {
+        console.log('📬 Loaded messages:', res.data.messages.length);
+        setMessages(res.data.messages);
+      }
+
+      if (socket) {
+        socket.emit('mark_as_read', { conversationId: conv._id });
+      }
+
+      setConversations(prev => prev.map(c => 
+        c._id === conv._id ? { ...c, unreadCount: 0 } : c
+      ));
+
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+    // Navigate to conversation route so URL reflects selected conversation
+    try {
+      navigate(`/messenger/${conv._id}`, { state: { conversationId: conv._id } });
+    } catch (e) {
+      console.error('❌ Navigation error:', e);
+    }
+  }, [API_URL, socket, navigate]);
+
   // ✅ Fetch conversations
+
   const fetchConversations = useCallback(async () => {
     if (!user) return;
 
@@ -127,32 +162,6 @@ export default function Messenger() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // ✅ Select conversation
-  const handleSelectConversation = useCallback(async (conv) => {
-    console.log('📂 Selecting conversation:', conv._id);
-    setSelectedConversation(conv);
-    
-    try {
-      const res = await axios.get(`${API_URL}/api/messages/${conv._id}`);
-      
-      if (res.data.success) {
-        console.log('📬 Loaded messages:', res.data.messages.length);
-        setMessages(res.data.messages);
-      }
-
-      if (socket) {
-        socket.emit('mark_as_read', { conversationId: conv._id });
-      }
-
-      setConversations(prev => prev.map(c => 
-        c._id === conv._id ? { ...c, unreadCount: 0 } : c
-      ));
-
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    }
-  }, [API_URL, socket]);
 
   // ✅ Send message
   const handleSendMessage = (e) => {

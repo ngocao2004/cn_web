@@ -82,6 +82,7 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/messenger" element={<Messenger />} />
+          <Route path="/messenger/:id" element={<Messenger />} />
           <Route path="/complete-profile" element={<CompleteProfile />} />
           <Route path="/ai-chat" element={<AIChatPage />} />
         </Routes>
