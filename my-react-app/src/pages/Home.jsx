@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Heart, RotateCcw, X as XIcon } from 'lucide-react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import axios from 'axios';
+import { Heart, RotateCcw, X as XIcon, MessageCircle } from 'lucide-react';
 import OtherProfileCard from '../components/OtherProfileCard';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -22,10 +23,32 @@ export default function Home() {
   const [deckError, setDeckError] = useState('');
   const [isProcessingAction, setIsProcessingAction] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState({});
+
+  // State cho editing metrics trong sidebar
+  const [editingMetrics, setEditingMetrics] = useState({
+    distance: 3,
+    ageMin: 20,
+    ageMax: 25
+  });
+  const [isEditingDistance, setIsEditingDistance] = useState(false);
+  const [isEditingAge, setIsEditingAge] = useState(false);
 
   const activeProfile = matchQueue[activeIndex];
-  const finderDistance = storedUser?.preferences?.distance || storedUser?.preferredDistance || 'Trong 3km';
+  
+  const finderDistance = useMemo(() => {
+    if (appliedFilters.distance) {
+      return `${appliedFilters.distance} km`;
+    }
+    return storedUser?.preferences?.distance || storedUser?.preferredDistance || 'Trong 3km';
+  }, [appliedFilters.distance, storedUser?.preferences?.distance, storedUser?.preferredDistance]);
+
   const finderAgeRange = useMemo(() => {
+    if (appliedFilters.ageRange?.min || appliedFilters.ageRange?.max) {
+      const min = appliedFilters.ageRange.min || 18;
+      const max = appliedFilters.ageRange.max || 50;
+      return `${min} - ${max} tuổi`;
+    }
     const preferred = storedUser?.preferredAgeRange;
     const agePreference = storedUser?.preferences?.ageRange;
     if (preferred) return preferred;
@@ -35,56 +58,51 @@ export default function Home() {
       return `${min} - ${max} tuổi`;
     }
     return '20 - 25 tuổi';
-  }, [storedUser?.preferredAgeRange, storedUser?.preferences?.ageRange]);
+  }, [appliedFilters.ageRange, storedUser?.preferredAgeRange, storedUser?.preferences?.ageRange]);
+
+  const fetchDeck = useCallback(async (filters = {}) => {
+    if (!API_URL || !userId) return;
+
+    setIsLoadingDeck(true);
+    setDeckError('');
+    setActionError('');
+
+    try {
+      const params = new URLSearchParams();
+      if (filters.distance) params.append('distance', filters.distance);
+      if (filters.ageRange?.min) params.append('ageMin', filters.ageRange.min);
+      if (filters.ageRange?.max) params.append('ageMax', filters.ageRange.max);
+
+      const url = `${API_URL}/api/findlove/${userId}/deck${params.toString() ? `?${params.toString()}` : ''}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        const message = payload?.message || 'Không thể tải dữ liệu tìm kiếm.';
+        throw new Error(message);
+      }
+
+      const payload = await response.json();
+      const deck = Array.isArray(payload?.data) ? payload.data : [];
+
+      setMatchQueue(deck);
+      setActiveIndex(0);
+      setHistory([]);
+    } catch (error) {
+      console.error('Fetch swipe deck failed:', error);
+      setDeckError(error.message || 'Không thể tải dữ liệu tìm kiếm.');
+    } finally {
+      setIsLoadingDeck(false);
+    }
+  }, [API_URL, userId]);
 
   useEffect(() => {
-    if (!API_URL || !userId) {
-      return;
-    }
-
-    const controller = new AbortController();
-
-    const fetchDeck = async () => {
-      setIsLoadingDeck(true);
-      setDeckError('');
-      setActionError('');
-
-      try {
-        const response = await fetch(`${API_URL}/api/findlove/${userId}/deck`, {
-          method: 'GET',
-          credentials: 'include',
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          const payload = await response.json().catch(() => null);
-          const message = payload?.message || 'Không thể tải dữ liệu tìm kiếm.';
-          throw new Error(message);
-        }
-
-        const payload = await response.json();
-        const deck = Array.isArray(payload?.data) ? payload.data : [];
-
-        setMatchQueue(deck);
-        setActiveIndex(0);
-        setHistory([]);
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        console.error('Fetch swipe deck failed:', error);
-        setDeckError(error.message || 'Không thể tải dữ liệu tìm kiếm.');
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoadingDeck(false);
-        }
-      }
-    };
-
-    fetchDeck();
-
-    return () => {
-      controller.abort();
-    };
-  }, [API_URL, userId]);
+    fetchDeck(appliedFilters);
+  }, [fetchDeck]);
 
   useEffect(() => {
     if (API_URL) {
@@ -156,6 +174,46 @@ export default function Home() {
     }
   };
 
+  // Handler cho apply metrics từ sidebar
+  const handleApplyMetrics = useCallback(() => {
+    const filters = {
+      distance: editingMetrics.distance,
+      ageRange: {
+        min: editingMetrics.ageMin,
+        max: editingMetrics.ageMax
+      }
+    };
+    setAppliedFilters(filters);
+    setIsEditingDistance(false);
+    setIsEditingAge(false);
+    fetchDeck(filters);
+  }, [editingMetrics, fetchDeck]);
+
+  // Handler mở chat với opening move
+  const handleOpeningMove = useCallback(async (message) => {
+    if (!activeProfile) return;
+
+    try {
+      await axios.post(
+        `${API_URL}/api/matches/opening-move`,
+        {
+          userId: storedUser._id || storedUser.id,
+          targetUserId: activeProfile._id || activeProfile.id,
+          message
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+          }
+        }
+      );
+      alert('Đã gửi tin nhắn mở đầu! 💌');
+    } catch (error) {
+      console.error('Lỗi khi gửi opening move:', error);
+      alert('Có lỗi xảy ra, vui lòng thử lại!');
+    }
+  }, [activeProfile, API_URL, storedUser]);
+
   const statusMessage = useMemo(() => {
     if (!API_URL) {
       return 'Thiếu cấu hình API. Vui lòng kiểm tra VITE_API_URL.';
@@ -201,14 +259,78 @@ export default function Home() {
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-[0.35em] text-rose-400/80">Search metrics</h3>
                 <div className="mt-5 space-y-4">
-                  <div className="flex items-center justify-between rounded-[20px] border border-rose-100 bg-white px-4 py-3 text-xs text-slate-600">
-                    <span className="font-semibold text-rose-500/90">Khoảng cách</span>
-                    <span className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-500">{finderDistance}</span>
+                  {/* Khoảng cách - Inline editing */}
+                  <div className="rounded-[20px] border border-rose-100 bg-white px-4 py-3 text-xs">
+                    {isEditingDistance ? (
+                      <div className="space-y-2">
+                        <label className="block text-xs font-semibold text-rose-500/90">Khoảng cách: {editingMetrics.distance} km</label>
+                        <input
+                          type="range"
+                          min="1"
+                          max="20"
+                          value={editingMetrics.distance}
+                          onChange={(e) => setEditingMetrics(prev => ({ ...prev, distance: Number(e.target.value) }))}
+                          className="w-full accent-rose-500"
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setIsEditingDistance(true)}
+                        className="flex w-full items-center justify-between text-slate-600 hover:text-rose-500"
+                      >
+                        <span className="font-semibold text-rose-500/90">Khoảng cách</span>
+                        <span className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-500">{finderDistance}</span>
+                      </button>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between rounded-[20px] border border-rose-100 bg-white px-4 py-3 text-xs text-slate-600">
-                    <span className="font-semibold text-rose-500/90">Độ tuổi</span>
-                    <span className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-500">{finderAgeRange}</span>
+
+                  {/* Độ tuổi - Inline editing */}
+                  <div className="rounded-[20px] border border-rose-100 bg-white px-4 py-3 text-xs">
+                    {isEditingAge ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-rose-500/90 mb-1">Tuổi min: {editingMetrics.ageMin}</label>
+                          <input
+                            type="range"
+                            min="18"
+                            max="50"
+                            value={editingMetrics.ageMin}
+                            onChange={(e) => setEditingMetrics(prev => ({ ...prev, ageMin: Number(e.target.value) }))}
+                            className="w-full accent-rose-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-rose-500/90 mb-1">Tuổi max: {editingMetrics.ageMax}</label>
+                          <input
+                            type="range"
+                            min="18"
+                            max="50"
+                            value={editingMetrics.ageMax}
+                            onChange={(e) => setEditingMetrics(prev => ({ ...prev, ageMax: Number(e.target.value) }))}
+                            className="w-full accent-rose-500"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setIsEditingAge(true)}
+                        className="flex w-full items-center justify-between text-slate-600 hover:text-rose-500"
+                      >
+                        <span className="font-semibold text-rose-500/90">Độ tuổi</span>
+                        <span className="rounded-full bg-teal-50 px-3 py-1 font-medium text-teal-500">{finderAgeRange}</span>
+                      </button>
+                    )}
                   </div>
+
+                  {/* Nút áp dụng bộ lọc */}
+                  {(isEditingDistance || isEditingAge) && (
+                    <button
+                      onClick={handleApplyMetrics}
+                      className="w-full rounded-full bg-rose-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-600"
+                    >
+                      Áp dụng bộ lọc
+                    </button>
+                  )}
                 </div>
               </div>
             </aside>
@@ -256,6 +378,14 @@ export default function Home() {
                     aria-label="Không phải gu của bạn"
                   >
                     <XIcon className="h-8 w-8 transition group-hover:scale-110" />
+                  </button>
+                  <button
+                    onClick={() => handleOpeningMove('Chào bạn! Mình thấy profile của bạn rất thú vị 😊')}
+                    disabled={!activeProfile || isProcessingAction || isLoadingDeck}
+                    className="group flex h-14 w-14 items-center justify-center rounded-full bg-blue-500 text-white shadow-[0_10px_30px_-18px_rgba(59,130,246,0.6)] transition hover:scale-105 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Gửi tin nhắn mở đầu"
+                  >
+                    <MessageCircle className="h-6 w-6 transition group-hover:scale-110" />
                   </button>
                   <button
                     onClick={handleRewind}

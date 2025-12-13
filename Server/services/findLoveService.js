@@ -136,6 +136,15 @@ const fetchSwipedUserIds = async (userId) => {
   return swipes.map((id) => id.toString());
 };
 
+// Chỉ lấy những người đã Like (không lấy người đã X/nope/dislike)
+const fetchLikedUserIds = async (userId) => {
+  const swipes = await Swipe.find({ 
+    swiperId: userId, 
+    actionType: 'like'  // Sửa từ 'action' thành 'actionType'
+  }).distinct('swipedId');
+  return swipes.map((id) => id.toString());
+};
+
 const buildCandidateQuery = (user, excludeIds, options = {}) => {
   const query = {
     _id: { $ne: user._id, $nin: excludeIds },
@@ -221,14 +230,39 @@ const createOrUpdateMatch = async (userId, targetId, compatibility) => {
 export const findLoveService = {
   async getSwipeDeck(userId, options = {}) {
     const limit = Number(options.limit) && Number(options.limit) > 0 ? Math.min(Number(options.limit), 30) : DEFAULT_CARD_LIMIT;
+    const { distance, ageMin, ageMax } = options;
 
     const userDoc = await ensureUserExists(userId);
     await ensureMatchingReady();
 
     const normalizedCurrentUser = buildUserResponse(userDoc);
-    const swipedIds = await fetchSwipedUserIds(userId);
+    
+    // Nếu có filter: chỉ loại những người đã Like, cho phép xem lại người đã X
+    // Nếu không có filter: loại tất cả người đã swipe (cả Like và X)
+    const hasFilters = distance !== undefined || ageMin !== undefined || ageMax !== undefined;
+    const swipedIds = hasFilters 
+      ? await fetchLikedUserIds(userId)  // Chỉ loại người đã Like
+      : await fetchSwipedUserIds(userId); // Loại tất cả đã swipe
 
     let candidateQuery = buildCandidateQuery(userDoc, swipedIds, { strictProfile: true });
+    
+    // Apply age filter if provided (filter by dob - date of birth)
+    if (ageMin !== undefined || ageMax !== undefined) {
+      const now = new Date();
+      candidateQuery.dob = {};
+      
+      // ageMin = tuổi nhỏ nhất → người sinh TRƯỚC ngày X (dob <= maxBirthDate)
+      if (ageMin !== undefined) {
+        const maxBirthDate = new Date(now.getFullYear() - ageMin, now.getMonth(), now.getDate());
+        candidateQuery.dob.$lte = maxBirthDate;
+      }
+      
+      // ageMax = tuổi lớn nhất → người sinh SAU ngày X (dob >= minBirthDate)
+      if (ageMax !== undefined) {
+        const minBirthDate = new Date(now.getFullYear() - ageMax - 1, now.getMonth(), now.getDate());
+        candidateQuery.dob.$gte = minBirthDate;
+      }
+    }
     let rawCandidates = await User.find(candidateQuery)
       .sort({ updatedAt: -1 })
       .limit(Math.max(limit * 3, MAX_CANDIDATE_POOL))
@@ -236,6 +270,23 @@ export const findLoveService = {
 
     if (!rawCandidates.length) {
       candidateQuery = buildCandidateQuery(userDoc, swipedIds, { strictProfile: false });
+      
+      // Re-apply age filter for fallback query (filter by dob)
+      if (ageMin !== undefined || ageMax !== undefined) {
+        const now = new Date();
+        candidateQuery.dob = {};
+        
+        if (ageMin !== undefined) {
+          const maxBirthDate = new Date(now.getFullYear() - ageMin, now.getMonth(), now.getDate());
+          candidateQuery.dob.$lte = maxBirthDate;
+        }
+        
+        if (ageMax !== undefined) {
+          const minBirthDate = new Date(now.getFullYear() - ageMax - 1, now.getMonth(), now.getDate());
+          candidateQuery.dob.$gte = minBirthDate;
+        }
+      }
+      
       rawCandidates = await User.find(candidateQuery)
         .sort({ updatedAt: -1 })
         .limit(Math.max(limit * 2, MAX_CANDIDATE_POOL))
@@ -246,9 +297,26 @@ export const findLoveService = {
       return { deck: [], total: 0 };
     }
 
-    const normalizedCandidates = rawCandidates
+    let normalizedCandidates = rawCandidates
       .map((doc) => buildUserResponse(doc))
       .filter(Boolean);
+
+    // Apply distance filter if provided
+    if (distance !== undefined && normalizedCurrentUser.geoLocation) {
+      normalizedCandidates = normalizedCandidates.filter(candidate => {
+        // Nếu candidate không có location, vẫn giữ lại (không loại bỏ)
+        if (!candidate.geoLocation) return true;
+        
+        const dist = haversineDistanceKm(
+          normalizedCurrentUser.geoLocation,
+          candidate.geoLocation
+        );
+        
+        // Chỉ loại bỏ nếu có location VÀ vượt quá khoảng cách
+        if (dist === null) return true;
+        return dist <= distance;
+      });
+    }
 
     if (normalizedCandidates.length === 0) {
       return { deck: [], total: 0 };
