@@ -30,7 +30,12 @@ export const createRoom = async (req, res) => {
 
 export const listRooms = async (req, res) => {
   try {
-    const rooms = await LibraryRoom.find().sort({ createdAt: -1 }).lean();
+    const rooms = await LibraryRoom.find()
+      .populate('occupants', 'name')
+      .populate('createdBy', 'name')
+      .populate('invites.senderId', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
     res.json({ success: true, rooms });
   } catch (err) {
     console.error('❌ Failed to list rooms:', err);
@@ -40,7 +45,10 @@ export const listRooms = async (req, res) => {
 
 export const getRoom = async (req, res) => {
   try {
-    const room = await LibraryRoom.findById(req.params.id).populate('occupants', 'name avatar').lean();
+    const room = await LibraryRoom.findById(req.params.id)
+      .populate('occupants', 'name avatar')
+      .populate('createdBy', 'name')
+      .populate('invites.senderId', 'name');
     if (!room) return res.status(404).json({ success: false, message: 'Không tìm thấy phòng.' });
     res.json({ success: true, room });
   } catch (err) {
@@ -52,22 +60,9 @@ export const getRoom = async (req, res) => {
 export const createInviteForRoom = async (req, res) => {
   try {
     const { id } = req.params; // room id
-    const { senderId, receiverId, status, schedule, note, expiresAt, receiverEmail } = req.body;
+    const { senderId, receiverId, status, schedule, note, expiresAt } = req.body;
 
-    if (!senderId) return res.status(400).json({ success: false, message: 'senderId là bắt buộc.' });
-    
-    // If receiverEmail provided, resolve to userId
-    let finalReceiverId = receiverId;
-    if (receiverEmail && !receiverId) {
-      const User = (await import('../models/User.js')).default;
-      const user = await User.findOne({ email: receiverEmail });
-      if (!user) {
-        return res.status(404).json({ success: false, message: 'Không tìm thấy người dùng với email này.' });
-      }
-      finalReceiverId = user._id;
-    }
-
-    if (!finalReceiverId) return res.status(400).json({ success: false, message: 'receiverId hoặc receiverEmail là bắt buộc.' });
+    if (!senderId || !receiverId) return res.status(400).json({ success: false, message: 'senderId và receiverId là bắt buộc.' });
 
     const room = await LibraryRoom.findById(id);
     if (!room) return res.status(404).json({ success: false, message: 'Không tìm thấy phòng.' });
@@ -84,7 +79,7 @@ export const createInviteForRoom = async (req, res) => {
 
     const invite = {
       senderId,
-      receiverId: finalReceiverId,
+      receiverId,
       status: status || 'pending',
       schedule: schedule || undefined,
       note: note?.trim(),

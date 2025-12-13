@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { X, Plus, Info } from 'lucide-react';
 import { UserContext } from '../contexts';
+import Navbar from '../components/Navbar';
 
 export default function LibraryInvite() {
   const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
@@ -287,9 +288,8 @@ export default function LibraryInvite() {
 
   return (
     <div className="min-h-screen bg-[#fff8fb]">
+      <Navbar />
       <div className="mx-auto w-full max-w-6xl px-4 py-16">
-        <div className="mb-8 text-center">
-        </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
           <section className="rounded-2xl border border-rose-50 bg-white p-6 shadow-sm">
@@ -392,7 +392,7 @@ export default function LibraryInvite() {
                     <li key={i._id || i.id} className="flex items-start justify-between gap-3 rounded-lg border border-slate-100 p-3">
                       <div>
                         <div className="font-medium text-slate-800">{rooms.find(r => r.id === i.roomId || r._id === i.roomId)?.name || 'Phòng'}</div>
-                        <div className="mt-1 text-xs text-slate-500">Từ: {i.senderName || 'Ai đó'}</div>
+                        <div className="mt-1 text-xs text-slate-500">Từ: {i.senderId?.name || 'Ai đó'}</div>
                         {i.expiresAt && (
                           <div className="mt-1 text-xs text-slate-400">Hết hạn: {new Date(i.expiresAt).toLocaleString()}</div>
                         )}
